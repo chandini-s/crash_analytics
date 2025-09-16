@@ -1,15 +1,15 @@
 pipeline {
-  agent { label 'svc-lab-win' }   // your SVC lab Windows node label
-
+  agent { label 'window' }
   options {
-    timestamps()
-    ansiColor('xterm')
-    buildDiscarder(logRotator(numToKeepStr: '50'))
-  }
+  buildDiscarder(logRotator(numToKeepStr: '50'))
+  wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm'])
+}
+
+
 
   parameters {
     string(name: 'DEVICES',
-           defaultValue: '10.91.231.25,10.91.231.82',
+           defaultValue: '10.91.231.25, 10.91.231.82',
            description: 'Devices to use. Comma/space separated IPs, or a full JSON array like [{"setup":"10.0.0.1"}, ...].')
 
     choice(name: 'TEST_TARGET',
