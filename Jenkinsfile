@@ -1,5 +1,4 @@
 pipeline {
-  agent { label 'windows' }        // your Windows agent label
 
   parameters {
     // Paste the file contents here each run (or set defaults in job config)
