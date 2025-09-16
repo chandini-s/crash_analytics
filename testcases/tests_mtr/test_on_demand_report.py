@@ -2,15 +2,15 @@
 
 import pytest
 from modules import generate_download as generate
+from utils import get_auth_and_cookie
 
 POLL_MINUTES = 10  # how long to keep checking
 POLL_EVERY_SEC = 30  # how often to recheck
 
 
 def test_on_demand_bugreport_appears():
-    # --- auth from your config files ---
-    jwt = generate.load(generate.AUTH_PATH)
-    cookie = generate.load(generate.COOKIE_PATH)
+    # --- auth from your jenkins ---
+    jwt,cookie = get_auth_and_cookie()
     if not (jwt or cookie):
         pytest.skip("Missing auth/cookie in ./config (auth.txt or cookie.txt)")
 

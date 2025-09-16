@@ -22,7 +22,7 @@ def test_events_Display():
     """
 
     # ---- 1) Headers / auth ----
-    if not _have_auth():
+    if not util.have_auth():
         pytest.skip("Missing auth in config/auth.txt or cookie in config/cookie.txt")
     try:
         headers = util.build_headers()

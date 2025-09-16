@@ -48,12 +48,12 @@ import re
 import requests
 from typing import Any, Optional, Dict
 import subprocess
-from utils import build_headers
+from utils import build_headers, get_serial_number, get_selected_device
 
 
-
+DEVICE =get_selected_device()
 API_BASE = "https://logi-analytics.vc.logitech.com/api"
-DEVICE_ID = "2411FD1LG0A2"  # replace or pass in to functions as needed
+DEVICE_ID = get_serial_number(DEVICE) # replace or pass in to functions as needed
 REQUEST_TIMEOUT = 30.0
 
 def get_collab_version_from_adb(adb_device):
