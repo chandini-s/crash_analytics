@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent        # => <project-root>
 DOWNLOAD_DIR = ROOT.parent / "downloaded_bugreports"
 #EXTRACT_DIR = os.path.expanduser("~/bugreport_extract")
 EXTRACT_DIR = ROOT.parent / "bugreport_extract"
-SEVEN_ZIP = r"C:\Program Files\7-Zip\7z.exe"
+SEVEN_ZIP = os.environ.get("SEVEN_ZIP",r"C:\Program Files\7-Zip\7z.exe")
 SEARCH_PREFIX = "bugreport-"
 SEARCH_STRING = "DUMP OF SERVICE diskstats"
 
