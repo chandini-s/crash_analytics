@@ -1,12 +1,6 @@
 pipeline {
   agent { label 'windows' }        // your Windows agent label
 
-  options {
-    timestamps()
-    ansiColor('xterm')
-    buildDiscarder(logRotator(numToKeepStr: '30'))
-  }
-
   parameters {
     // Paste the file contents here each run (or set defaults in job config)
     text(name: 'AUTH_TXT',   defaultValue: '', description: 'Contents of auth.txt')
