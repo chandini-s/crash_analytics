@@ -1,6 +1,6 @@
 pipeline {
-
-  parameters {
+    agent any
+    parameters {
     // Paste the file contents here each run (or set defaults in job config)
     text(name: 'AUTH_TXT',   defaultValue: '', description: 'Contents of auth.txt')
     text(name: 'COOKIE_TXT', defaultValue: '', description: 'Contents of cookie.txt')
