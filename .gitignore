@@ -1,0 +1,13 @@
+.venv
+
+#IDE file
+.idea
+
+
+#python bycode files
+__pycache__/
+*.pyc
+
+reports
+bugreport_extract
+downloaded_bugreports
