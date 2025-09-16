@@ -6,7 +6,7 @@ pipeline {
     text(name: 'COOKIE_TXT', defaultValue: '', description: 'Contents of cookie.txt')
 
     // Devices are provided ONLY via Jenkins params (no repo JSON)
-    string(name: 'DEVICES',
+    string(name: 'DEVICE',
            defaultValue: '',
            description: 'Comma/space/semicolon separated IPs. :5555 is added if missing')
 
@@ -29,7 +29,7 @@ pipeline {
     PIP      = ".venv\\Scripts\\pip.exe"
 
     // pass-throughs your Python uses
-    DEVICES    = "${params.DEVICES}"
+    DEVICES    = "${params.DEVICE}"
     TEST_TARGET= "${params.TEST_TARGET}"
     SEVEN_ZIP  = "${params.SEVEN_ZIP_PATH}"
   }
@@ -66,7 +66,7 @@ pipeline {
       steps {
         bat """
           call ${VENV_ACT} ^
-          && set DEVICES=${DEVICES} ^
+          && set DEVICE=${DEVICE} ^
           && set TEST_TARGET=${TEST_TARGET} ^
           && set SEVEN_ZIP=${SEVEN_ZIP} ^
           && ${PYTHON} tests_run.py
@@ -91,7 +91,7 @@ pipeline {
               writeFile file: 'config/cookie.txt', text: params.COOKIE_TXT
               bat """
                 call ${VENV_ACT} ^
-                && set DEVICES=${ip} ^
+                && set DEVICE=${ip} ^
                 && set TEST_TARGET=${params.TEST_TARGET} ^
                 && set SEVEN_ZIP=${params.SEVEN_ZIP_PATH} ^
                 && ${PYTHON} tests_run.py
