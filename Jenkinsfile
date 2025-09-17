@@ -3,7 +3,7 @@ pipeline {
 
   // Keep parameters (you'll see the page, but values are remembered)
   parameters {
-    string(name: 'DEVICES',    defaultValue: '2411FD1LG0A2', description: 'Serial(s)/IP(s); space or comma separated')
+    string(name: 'DEVICES',    defaultValue: '', description: 'Serial(s)/IP(s); space or comma separated')
     text  (name: 'AUTH',   defaultValue: '',             description: 'Auth header text (paste exact)')
     text  (name: 'COOKIE', defaultValue: '',             description: 'Cookie header text (do NOT trim)')
     // No TEST_TARGET param. We default to mtr in CI if empty.
