@@ -434,7 +434,7 @@ def main():
     - Polls and downloads the report.
     """
     jwt, cookie = get_auth_and_cookie()
-    trigger_time = trigger_on_demand(DEVICE_ID)
+    trigger_time = trigger_on_demand(DEVICE)
     to_time = trigger_time + timedelta(minutes=30)
     # poll up to 10 minutes, checking every 60 seconds
     poll_and_download_periodic(jwt, cookie, trigger_time,to_time , poll_every_sec=60)

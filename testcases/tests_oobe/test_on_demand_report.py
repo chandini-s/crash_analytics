@@ -14,7 +14,7 @@ def test_on_demand_bugreport_appears():
         pytest.skip("Missing auth/cookie in ./config (auth.txt or cookie.txt)")
 
     # --- trigger via ADB (no download) ---
-    trigger_time = generate.trigger_on_demand(generate.DEVICE_ID)
+    trigger_time = generate.trigger_on_demand(generate.DEVICE)
 
     try:
         download_path = generate.poll_and_download(
