@@ -62,23 +62,17 @@ pipeline {
       steps {
         bat """
           setlocal EnableDelayedExpansion
-
-          rem ---- pass params to runner ----
-          rem <<< FIX: set DEVICE (not DEVICES) >>>
+          rem pass the Jenkins parameter straight through
           set DEVICE=%DEVICE%
           set SEVEN_ZIP=%SEVEN_ZIP%
 
-          rem ---- CI-safe default to avoid 'auto' on Jenkins ----
-          rem <<< FIX: your runner reads RUN_TARGET, not TEST_TARGET >>>
-          if "%%RUN_TARGET%%"=="" if not "%%JENKINS_URL%%"=="" set RUN_TARGET=mtr
-
-          echo DEVICE=%%DEVICE%%
-          echo RUN_TARGET=%%RUN_TARGET%%
+          echo DEVICE=%DEVICE%
           .venv\\Scripts\\python.exe tests_run.py
           if errorlevel 1 exit /b 1
         """
       }
     }
+
 
     stage('Select latest report') {
       steps {

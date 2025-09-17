@@ -4,11 +4,7 @@ from modules.version import get_collabos_version, get_collab_version_from_adb
 import utils as util
 
 
-def _have_auth():
-    # same config locations used by events.py
-    return util.read_text(util.AUTH_PATH) or util.read_text(util.COOKIE_PATH)
-
-
+util.have_auth()
 def test_version_verification():
     """Test to verify the software version displayed on the web page matches the device version."""
     web_version = get_collabos_version()

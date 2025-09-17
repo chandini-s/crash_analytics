@@ -4,12 +4,7 @@ import pytest
 from modules.mode import fetch_device_mode
 import utils as util
 
-
-def _have_auth():
-    # same config locations used by events.py
-    return util.read_text(util.AUTH_PATH) or util.read_text(util.COOKIE_PATH)
-
-
+util.have_auth()
 def test_device_mode_is_appliance():
     """
     call get_device_mode() from mode.py and assert
