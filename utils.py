@@ -8,8 +8,6 @@ from typing import Optional
 
 ROOT = Path(__file__).resolve().parent
 CONFIG_DIR = ROOT / "config"
-AUTH_PATH = CONFIG_DIR / "auth.txt"
-COOKIE_PATH = CONFIG_DIR / "cookie.txt"
 METADATA_PATH = ROOT /"metadata.json"
 
 _SELECTED_SERIAL: Optional[str] = None
@@ -119,7 +117,6 @@ def get_auth_and_cookie():
     if auth or cookie:
         return auth, cookie
     # fallback to files so local dev still works
-    return _read_text(AUTH_PATH), _read_text(COOKIE_PATH)
 
 
 def have_auth() -> bool:

@@ -48,8 +48,6 @@ PRESIGN_URL = f"{API_BASE}/bugreports/get-download-url"
 # ------Paths -----
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "config"
-AUTH_PATH = CONFIG_DIR / "auth.txt"
-COOKIE_PATH = CONFIG_DIR / "cookie.txt"
 DOWNLOAD_DIR = ROOT / "downloaded_bugreports"
 
 # ------Timezone & Regex -----
