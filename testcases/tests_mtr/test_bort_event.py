@@ -63,8 +63,7 @@ def test_events_bort():
     assert found, f"Expected Bort_DiskStats not found (scanned last page count={last_count})"
     # ---- 4) Download the periodic bug report ----
 
-    jwt = generate.load(generate.AUTH_PATH)
-    cookie = generate.load(generate.COOKIE_PATH)
+    jwt, cookie = util.get_auth_and_cookie()
     from_time = generate.iso_z(datetime.fromisoformat(from_iso).astimezone(timezone.utc))
     to_time = generate.iso_z(datetime.fromisoformat(to_iso).astimezone(timezone.utc))
     downloaded_path = generate.poll_and_download_periodic(jwt, cookie, from_time,to_time, poll_every_sec=60)
