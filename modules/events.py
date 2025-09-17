@@ -97,11 +97,10 @@ def reboot_and_wait(serial: str) -> datetime:
     print("Rebooting device via ADB…")
     trigger_time = datetime.now(IST)
     adb(serial, ["reboot"], check=False)
-    print("Reboot command sent.")
     print("Waiting for device (adb wait-for-device)…")
     subprocess.run(["adb", "-s", serial, "wait-for-device"], check=True, text=True, timeout=360)
     print("ADB device is online.")
-    print("Waiting for sys.boot_completed=1…")
+    print("Waiting for sys.boot_completed=1")
     deadline = time.time() + 360
     while time.time() < deadline:
         out = adb(serial, ["shell", "getprop", "sys.boot_completed"], check=False)
@@ -154,9 +153,7 @@ def scan_window(headers: dict, from_iso: str, to_iso: str, *, max_pages: int = 2
     assert isinstance(PAGE_LIMIT, int) and PAGE_LIMIT > 0, "PAGE_LIMIT must be a positive int"
 
     for page_no in range(max_pages):
-        print(f"[scan] page_no={page_no} offset={offset}")
         page = fetch_page(headers, from_iso, to_iso, offset)
-        print(f"[scan] len(page)={len(page)}")
 
         if not page:
             # empty page → nothing else to fetch

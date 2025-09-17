@@ -351,7 +351,6 @@ def poll_and_download(jwt, cookie, trigger_time, poll_minutes=10, poll_every_sec
         # not found yet
         sleep_left = poll_every_sec
         while sleep_left > 0:
-            print(f"…waiting {sleep_left}s", end="\r", flush=True)
             time.sleep(1)
             sleep_left -= 1
         print()# newline after progress
@@ -421,7 +420,6 @@ def poll_and_download_periodic(jwt, cookie, from_time, to_time, poll_every_sec=6
 
         # Not found yet — backoff
         for s in range(poll_every_sec, 0, -1):
-            print(f"…waiting {s}s", end="\r", flush=True)
             time.sleep(1)
         print()
 

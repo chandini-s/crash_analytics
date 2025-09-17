@@ -1,14 +1,6 @@
 pipeline {
   agent any
 
-  // No TEST_TARGET param on purpose
-  parameters {
-    string(name: 'DEVICES',    defaultValue: '', description: 'Serial(s)/IP(s); space or comma separated')
-    text  (name: 'AUTH_TXT',   defaultValue: '',             description: 'Auth header text')
-    text  (name: 'COOKIE_TXT', defaultValue: '',             description: 'Cookie header text')
-    booleanParam(name: 'ARCHIVE_ZIPS', defaultValue: true, description: 'Archive any *.zip downloads')
-  }
-
   environment {
     SEVEN_ZIP            = "C:\\Program Files\\7-Zip\\7z.exe"
     DEFAULT_TEST_TARGET  = "tests_device_mode"   // CI-safe default if TEST_TARGET is empty
