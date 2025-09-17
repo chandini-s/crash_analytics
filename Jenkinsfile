@@ -1,6 +1,5 @@
 pipeline {
   agent any
-  options { timestamps(); ansiColor('xterm') }
 
   // Keep parameters (Jenkins will show the page but remember last values)
   parameters {
