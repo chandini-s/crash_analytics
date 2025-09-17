@@ -317,6 +317,7 @@ def poll_and_download(jwt, cookie, trigger_time, poll_minutes=10, poll_every_sec
     poll_start_time = trigger_time - timedelta(minutes=5)
     poll_end_time = trigger_time + timedelta(minutes=poll_minutes)
     attempt = 0
+    print("Polling for on-demand reports from", poll_start_time, "to", poll_end_time)
     while True:
         attempt += 1
         now_utc = datetime.now(IST)
