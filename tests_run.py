@@ -2,6 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 import os, sys, datetime as dt, subprocess, shlex
 import pytest
+import re
 
 # --- your existing helpers (adjust names if different) ---
 from utils import (

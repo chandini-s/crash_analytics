@@ -1,69 +1,88 @@
 pipeline {
   agent any
+  options { timestamps(); ansiColor('xterm') }
+
+  // Parameters (pre-filled every time; you can just press Build)
   parameters {
-    string(name: 'DEVICES', defaultValue: '', description: 'Comma/space separated device IPs')
-    string(name: 'AUTH_TXT', defaultValue: '', description: 'Auth header value')
-    string(name: 'COOKIE_TXT', defaultValue: '', description: 'Cookie header value')
-    choice(name: 'TEST_TARGET', choices: ['auto','tests_mtr','tests_zoom','tests_oobe'], description: '')
+    string(name: 'DEVICES',    defaultValue: '', description: 'Serial(s)/IP(s); space or comma separated')
+    text  (name: 'AUTH_TXT',   defaultValue: '',             description: 'Auth header text')
+    text  (name: 'COOKIE_TXT', defaultValue: '',             description: 'Cookie header text')
+    choice(name: 'TEST_SUITE', choices: ['tests_mtr','tests_zoom','tests_oobe'], description: 'Single suite to run')
+    booleanParam(name: 'ARCHIVE_ZIPS', defaultValue: true, description: 'Archive any *.zip downloads')
   }
+
   environment {
-    DEVICES   = "${params.DEVICES}"
-    AUTH_TXT  = "${params.AUTH_TXT}"
-    COOKIE_TXT= "${params.COOKIE_TXT}"
     SEVEN_ZIP = "C:\\Program Files\\7-Zip\\7z.exe"
   }
+
   stages {
-    stage('Write runtime config from params') {
+    stage('Checkout') { steps { checkout scm } }
+
+    stage('Python venv & deps (Windows)') {
       steps {
-        bat 'if not exist config mkdir config'
-        writeFile file: 'config/auth.txt',   text: env.AUTH_TXT ?: ''
-        writeFile file: 'config/cookie.txt', text: env.COOKIE_TXT ?: ''
+        bat '''
+          if not exist .venv\\Scripts\\python.exe (
+            py -3 -m venv .venv
+          )
+          .venv\\Scripts\\python.exe -m pip install --upgrade pip
+          if exist requirements.txt (
+            .venv\\Scripts\\pip.exe install -r requirements.txt
+          ) else (
+            .venv\\Scripts\\pip.exe install pytest pytest-html requests
+          )
+        '''
       }
     }
-    stage('Run tests (serial)') {
+
+    stage('Prepare config & folders') {
       steps {
+        bat 'if not exist config mkdir config'
+        bat 'if not exist reports mkdir reports'
+        bat 'if not exist downloads mkdir downloads'
+        // Use Jenkins writeFile so special characters in headers are safe on Windows
         script {
-          if (!params.DEVICES?.trim()) {
-            error("DEVICES parameter is empty")
-          }
+          writeFile file: 'config/auth.txt',   text: params.AUTH_TXT ?: ''
+          writeFile file: 'config/cookie.txt', text: params.COOKIE_TXT ?: ''
+          writeFile file: 'config/devices.txt', text: params.DEVICES ?: ''
         }
+      }
+    }
+
+    stage('Run tests (one suite, one time)') {
+      steps {
         bat """
-          call .venv\\Scripts\\activate.bat
-          set DEVICES=${env.DEVICES}
-          set TEST_TARGET=${params.TEST_TARGET}
-          set SEVEN_ZIP=${env.SEVEN_ZIP}
+          setlocal enabledelayedexpansion
+          set DEVICES=%DEVICES%
+          set TEST_TARGET=%TEST_SUITE%
+          set SEVEN_ZIP=%SEVEN_ZIP%
+
+          echo === Running %TEST_TARGET% ===
           .venv\\Scripts\\python.exe tests_run.py
+
+          rem If your suite already created an HTML in reports\\report_*.html this is a no-op.
+          rem Fallback: generate a minimal pytest HTML so publishHTML always has something.
+          dir /b reports\\report_%TEST_TARGET%_*.html >nul 2>&1
+          if errorlevel 1 (
+            echo No suite HTML found, creating one via pytest...
+            .venv\\Scripts\\pytest.exe %TEST_TARGET% -q --maxfail=1 --html "reports\\report_%TEST_TARGET%_%BUILD_NUMBER%.html" --self-contained-html
+          )
         """
       }
     }
-    stage('Run tests (parallel by device)') {
-      when { expression { params.DEVICES?.trim() } }
-      steps {
-        script {
-          def ips = params.DEVICES.trim().split(/[ ,;]+/) as List
-          def branches = [:]
-          ips.each { ip ->
-            branches["run_${ip}"] = {
-                bat """
-                call .venv\\Scripts\\activate.bat
-                set DEVICES=${ip}
-                set TEST_TARGET=${params.TEST_TARGET}
-                set SEVEN_ZIP=${env.SEVEN_ZIP}
-                .venv\\Scripts\\python.exe tests_run.py
-              """
-            }
-          }
-          parallel branches
-        }
-      }
-    }
   }
+
   post {
     always {
       junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
-    }
-    failure {
-      echo '❌ Build failed—see Console Output for the first error.'
+      archiveArtifacts artifacts: 'reports/*.html, downloads/**/*.zip, **/debugarchive_*.zip', fingerprint: true, onlyIfSuccessful: false
+      publishHTML(target: [
+        reportDir: 'reports',
+        reportFiles: 'report_*.html',
+        reportName: "Crash Analytics – ${params.TEST_SUITE}",
+        keepAll: true,
+        allowMissing: true,
+        alwaysLinkToLastBuild: true
+      ])
     }
   }
 }
