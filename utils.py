@@ -77,10 +77,15 @@ def get_selected_device() -> str:
     return _SELECTED_SERIAL
 
 
-def adb(*args, check=True):
+def adb(serial: str, args=None, check=True, timeout=None):
     """Wrapper that always scopes to the selected device."""
-    serial = get_selected_device()
-    return _run(["adb", "-s", serial, *args], check=check)
+    if args is None:
+        args = []
+    if isinstance(args, str):
+        #split on spaces
+        args = args.split()
+    cmd = ["adb", "-s", str(serial)] + list(args)
+    return subprocess.run(cmd, text=True, capture_output=True, check=check, timeout=timeout)
 
 # def get_serial_number(_: str | None = None) -> str:
 #     """Return the Android ro.serialno of the selected device."""
@@ -90,13 +95,13 @@ def adb(*args, check=True):
 #     return out
 
 
-def get_serial_number(serial: str | None = None) -> str:
+def get_serial_number(device_selected: str ) -> str | None:
     """Return the Android ro.serialno of the selected device."""
-    out = adb(serial, ["shell", "getprop", "ro.serialno"]).stdout.strip()
-    if not out:
-        raise RuntimeError("ro.serialno is empty")
-    return out
-
+    try:
+        out = adb(device_selected, ["shell", "getprop", "ro.serialno"]).stdout.strip()
+        return out or None
+    except subprocess.CalledProcessError:
+        return None
 
 # (optional) helpers you already have can call adb():
 
