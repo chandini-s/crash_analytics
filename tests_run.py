@@ -85,6 +85,15 @@ def run_selected_pytests(target: str) -> int:
     Launch a fresh pytest session against the selected folder.
     We’re inside a pytest test, so use pytest.main programmatically.
     """
+    os.environ.pop("JAVA_HOME", None)
+    os.environ.pop("GIT_COMMIT", None) # avoid pytest warnings about these
+    os.environ.pop("GIT_URL", None)
+    os.environ.pop("GIT_BRANCH", None)
+    os.environ.pop("WORKSPACE", None)
+    device_ip = os.getenv("DEVICE", "").strip() or os.getenv("DEVICES", "").split(",")[0].strip()
+    serial_no = get_serial_number(device_ip)
+    board, display_name = get_product_details(device_ip)
+    focused_app = get_focused_app(device_ip)
     ensure_reports_dir()
     stamp = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     html = str(REPORTS_DIR / f"report_{Path(target).name}_{stamp}.html")
@@ -96,7 +105,12 @@ def run_selected_pytests(target: str) -> int:
         "--disable-warnings",
         "--html", html,
         "--self-contained-html",
+        "--metadata", "Focused App", focused_app,
+        "--metadata", "Serial NO", serial_no,
+        "--metadata", "Board Details", board,
+        "--metadata", "Display Name", display_name
     ]
+
     return pytest.main(args)
 
 

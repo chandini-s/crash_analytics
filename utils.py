@@ -114,8 +114,8 @@ def _read_text(p: Path) -> str:
 
 def get_auth_and_cookie():
     # Jenkins can pass these as String Parameters
-    auth = os.getenv("AUTH_TXT", "").strip()
-    cookie = os.getenv("COOKIE_TXT", "").strip()
+    auth = os.getenv("AUTH", "").strip()
+    cookie = os.getenv("COOKIE", "").strip()
     if auth or cookie:
         return auth, cookie
     # fallback to files so local dev still works
