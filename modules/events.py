@@ -92,19 +92,19 @@ def reboot_and_wait(serial: str) -> datetime:
       Raises:
       RuntimeError
           If boot completion is not detected within timeout."""
-    print("↻ Rebooting device via ADB…")
+    print("Rebooting device via ADB…")
     trigger_time = datetime.now(IST)
     adb(serial, ["reboot"], check=False)
-    print("✓ Reboot command sent.")
+    print("Reboot command sent.")
     print("Waiting for device (adb wait-for-device)…")
     subprocess.run(["adb", "-s", serial, "wait-for-device"], check=True, text=True, timeout=360)
-    print("✓ ADB device is online.")
+    print("ADB device is online.")
     print("Waiting for sys.boot_completed=1…")
     deadline = time.time() + 360
     while time.time() < deadline:
         out = adb(serial, ["shell", "getprop", "sys.boot_completed"], check=False)
         if (out.stdout or "").strip() == "1":
-            print("✓ Boot completed.")
+            print("Boot completed.")
             return trigger_time
         time.sleep(2)
     raise RuntimeError("Timed out waiting for boot completion")
