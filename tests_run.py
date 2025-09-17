@@ -14,6 +14,37 @@ from utils import (
 PROJECT_ROOT = Path(__file__).resolve().parent
 REPORTS_DIR = PROJECT_ROOT / "reports"
 
+# --- keep only selected fields in pytest-html "Environment" table -------------
+import platform
+
+try:
+    from pytest_metadata.plugin import metadata_key
+
+    _NEW_MD = True
+except Exception:
+    _NEW_MD = False
+
+
+class _TidyEnvPlugin:
+    def __init__(self, serial="", board="", display=""):
+        self.serial = serial;
+        self.board = board;
+        self.display = display
+
+    def pytest_configure(self, config):
+        md = config.stash[metadata_key] if _NEW_MD else getattr(config, "_metadata", {})
+        try:
+            md.clear()
+        except Exception:
+            for k in list(md.keys()): del md[k]
+        md["Python"] = platform.python_version()
+        md["Platform"] = platform.platform()
+        if self.serial:  md["Serial"] = self.serial
+        if self.board:   md["Board details"] = self.board
+        if self.display: md["Display name"] = self.display
+
+
+# -----------------------------------------------------------------------------
 
 # ---------- small shell helpers ----------
 def run(cmd: str) -> tuple[int, str, str]:
@@ -81,15 +112,12 @@ def ensure_reports_dir() -> None:
 
 
 def run_selected_pytests(target: str) -> int:
-    """
-    Launch a fresh pytest session against the selected folder.
-    We’re inside a pytest test, so use pytest.main programmatically.
-    """
     os.environ.pop("JAVA_HOME", None)
-    os.environ.pop("GIT_COMMIT", None) # avoid pytest warnings about these
+    os.environ.pop("GIT_COMMIT", None)
     os.environ.pop("GIT_URL", None)
     os.environ.pop("GIT_BRANCH", None)
     os.environ.pop("WORKSPACE", None)
+
     device_ip = os.getenv("DEVICE", "").strip() or os.getenv("DEVICES", "").split(",")[0].strip()
     serial_no = get_serial_number(device_ip)
     board, display_name = get_product_details(device_ip)
@@ -98,21 +126,14 @@ def run_selected_pytests(target: str) -> int:
     ensure_reports_dir()
     stamp = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     html = str(REPORTS_DIR / f"report_{Path(target).name}_{stamp}.html")
+
     args = [
-        target,
-        "-q",
-        "-s",
-        "--maxfail=1",
-        "--disable-warnings",
-        "--html", html,
-        "--self-contained-html",
-        "--metadata", "Focused App", focused_app,
-        "--metadata", "Serial NO", serial_no,
-        "--metadata", "Board Details", board,
-        "--metadata", "Display Name", display_name
+        target, "-q", "-s", "--maxfail=1", "--disable-warnings",
+        "--html", html, "--self-contained-html",
+        # we no longer pass many --metadata pairs; the plugin will control the table
     ]
 
-    return pytest.main(args)
+    return pytest.main(args, plugins=[_TidyEnvPlugin(serial_no, board, display_name)])
 
 
 # ============== the one test Jenkins calls =================
@@ -146,8 +167,9 @@ def test_drive_from_jenkins():
 
     # 4) choose suite (honor RUN_TARGET override)
     run_target = (
-        os.getenv("RUN_TARGET") or os.getenv("TEST_TARGET")
-    )
+            os.getenv("RUN_TARGET") or os.getenv("TEST_TARGET")
+            or ("mtr" if os.getenv("JENKINS_URL") else "auto")
+    ).strip().lower()
     target_path = pick_target(focused, run_target)
     print(f"Running test target: {target_path} (override={run_target})")
 
