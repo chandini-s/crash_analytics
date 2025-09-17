@@ -164,75 +164,14 @@ def build_headers() -> dict:
         If neither JWT nor Cookie is configured.
     """
     headers = {"Accept": "application/json"}
-    jwt = read_text(AUTH_PATH)
+    jwt,cookie = get_auth_and_cookie()
     if jwt:
         headers["Authorization"] = jwt if jwt.lower().startswith("bearer ") else f"Bearer {jwt}"
-    cookie = read_text(COOKIE_PATH)
     if cookie:
         headers["Cookie"] = cookie
     if "Authorization" not in headers and "Cookie" not in headers:
         raise RuntimeError("No auth configured. Put JWT in config/auth.txt and/or Cookie in config/cookie.txt")
     return headers
-
-#
-# _selected_device = None  # Cache the selected device
-#
-#
-# def get_connected_devices():
-#     global _selected_device
-#     if _selected_device:
-#         return _selected_device
-#     result = subprocess.run(["adb", "devices"], capture_output=True, text=True)
-#     lines = result.stdout.strip().splitlines()
-#     devices = [line.split()[0] for line in lines[1:] if "device" in line]
-#
-#     if not devices:
-#         print("No ADB devices found.")
-#         return None
-#
-#     # Always ask user to select (even if only one)
-#     print("\nConnected ADB Devices:")
-#     for idx, dev in enumerate(devices, start=1):
-#         print(f"{idx}. {dev}")
-#
-#     while True:
-#         try:
-#             choice = int(input("Select a device by number: ")) - 1
-#             if 0 <= choice < len(devices):
-#                 _selected_device = devices[choice]
-#                 return _selected_device
-#         except ValueError:
-#             pass
-#         print("Invalid selection. Please enter a valid number.")
-
-# def get_selected_device():
-#     """Returns the currently selected ADB device."""
-#     global _selected_device
-#     if _selected_device:
-#         return _selected_device
-#     else:
-#         print("No device selected. Please run get_connected_device() first.")
-#         return None
-
-def connect(device_ip):
-    """Connects to an ADB device using its IP address."""
-    disconnect_cmd = f'adb disconnect'
-    disconnect = subprocess.check_output(disconnect_cmd, shell=True, text=True)
-    command = f'adb -s {device_ip} connect {device_ip}'
-    output = subprocess.check_output(command, shell=True, text=True)
-
-# def get_serial_number(adb_device):
-#     """Fetches the serial number of the connected device using adb in order to use it in URL."""
-# # Run the adb shell command
-#     command = f'adb -s {adb_device} shell "getprop | grep ro.serialno"'
-#     output=subprocess.check_output(command, shell=True, text=True)
-
-# Use regex to find the serial number
-#     match = re.search(r'\[ro\.serialno\]: \[(.*?)\]', output)
-#     if match:
-#         serial_number = match.group(1)
-#         return serial_number
-
 
 def get_focused_app(adb_device):
     """Fetches the currently focused app on the device using adb shell dumpsys."""
