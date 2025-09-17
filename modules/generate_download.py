@@ -36,7 +36,7 @@ import time, subprocess, requests, re
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional
-from utils import get_serial_number,get_selected_device
+from utils import get_serial_number,get_selected_device, get_auth_and_cookie
 
 # -----Configuration -----
 DEVICE = get_selected_device()
@@ -433,8 +433,7 @@ def main():
     - Triggers ON-DEMAND bugreport.
     - Polls and downloads the report.
     """
-    jwt = load(AUTH_PATH)
-    cookie = load(COOKIE_PATH)
+    jwt, cookie = get_auth_and_cookie()
     trigger_time = trigger_on_demand(DEVICE_ID)
     to_time = trigger_time + timedelta(minutes=30)
     # poll up to 10 minutes, checking every 60 seconds

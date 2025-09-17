@@ -97,6 +97,11 @@ def get_serial_number(device_selected: str ) -> str | None:
     """Return the Android ro.serialno of the selected device."""
     try:
         out = adb(device_selected, ["shell", "getprop", "ro.serialno"]).stdout.strip()
+        match = re.search(r'\[ro\.serialno\]: \[(.*?)\]', out)
+        if match:
+            serial_number = match.group(1)
+            print("Serial number:", serial_number)
+            return serial_number
         return out or None
     except subprocess.CalledProcessError:
         return None
