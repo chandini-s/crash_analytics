@@ -79,15 +79,17 @@ pipeline {
       junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
       archiveArtifacts artifacts: 'reports/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip',
                         fingerprint: true, onlyIfSuccessful: false
-
-      publishHTML(target: [
-        reportDir: 'reports',
-        reportFiles: 'report_*.html',
-        reportName: "Crash Analytics – HTML Reports",
-        keepAll: true,
-        allowMissing: true,
-        alwaysLinkToLastBuild: true
+      script {
+        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+            publishHTML(target: [
+                reportDir: 'reports',
+                reportFiles: 'report_*.html',
+                reportName: "Crash Analytics – HTML Reports",
+                keepAll: true,
+                allowMissing: true,
+                alwaysLinkToLastBuild: true
       ])
     }
   }
+ }
 }
