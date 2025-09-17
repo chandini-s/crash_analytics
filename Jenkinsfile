@@ -1,12 +1,12 @@
 pipeline {
   agent any
 
-  // Keep parameters (you'll see the page, but values are remembered)
+
+  // Keep parameters (Jenkins will show the page but remember last values)
   parameters {
-    string(name: 'DEVICE',    defaultValue: '', description: 'Serial(s)/IP(s); space or comma separated')
-    text  (name: 'AUTH',   defaultValue: '',             description: 'Auth header text (paste exact)')
-    text  (name: 'COOKIE', defaultValue: '',             description: 'Cookie header text (do NOT trim)')
-    // No TEST_TARGET param. We default to mtr in CI if empty.
+    string(name: 'DEVICE',    defaultValue: '', description: 'Serial/IP or IP:port')
+    text  (name: 'AUTH',      defaultValue: '', description: 'Auth header text (paste exact)')
+    text  (name: 'COOKIE',    defaultValue: '', description: 'Cookie header text (do NOT trim)')
   }
 
   environment {
@@ -46,15 +46,15 @@ pipeline {
 
     stage('Write runtime config from PARAMETERS') {
       steps {
-        // Preserve exact text (don’t lose semicolons, spaces, etc.)
+        // <<< FIX: use the actual parameter names >>>
         script {
-          writeFile file: 'config/auth.txt',    text: (params.AUTH_TXT   ?: '')
-          writeFile file: 'config/cookie.txt',  text: (params.COOKIE_TXT ?: '')
-          writeFile file: 'config/devices.txt', text: (params.DEVICES    ?: '')
+          writeFile file: 'config/auth.txt',    text: (params.AUTH   ?: '')
+          writeFile file: 'config/cookie.txt',  text: (params.COOKIE ?: '')
+          writeFile file: 'config/devices.txt', text: (params.DEVICE ?: '')
         }
         bat """
           echo === Using parameter values ===
-          echo DEVICES=%DEVICES%
+          echo DEVICE=%DEVICE%
         """
       }
     }
@@ -62,18 +62,21 @@ pipeline {
     stage('Run tests (one suite, one time)') {
       steps {
         bat """
-          setlocal enabledelayedexpansion
+          setlocal EnableDelayedExpansion
 
           rem ---- pass params to runner ----
-          set DEVICES=%DEVICES%
+          rem <<< FIX: set DEVICE (not DEVICES) >>>
+          set DEVICE=%DEVICE%
           set SEVEN_ZIP=%SEVEN_ZIP%
 
-          rem ---- CI-safe default to avoid 'auto' branch on Jenkins ----
-          if "%TEST_TARGET%"=="" if not "%JENKINS_URL%"=="" set TEST_TARGET=mtr
+          rem ---- CI-safe default to avoid 'auto' on Jenkins ----
+          rem <<< FIX: your runner reads RUN_TARGET, not TEST_TARGET >>>
+          if "%%RUN_TARGET%%"=="" if not "%%JENKINS_URL%%"=="" set RUN_TARGET=mtr
 
-          echo DEVICES=%DEVICES%
-          echo TEST_TARGET=%TEST_TARGET%
+          echo DEVICE=%%DEVICE%%
+          echo RUN_TARGET=%%RUN_TARGET%%
           .venv\\Scripts\\python.exe tests_run.py
+          if errorlevel 1 exit /b 1
         """
       }
     }
@@ -96,15 +99,12 @@ pipeline {
 
   post {
     always {
-      // harmless if you don't emit XML; keeps console tidy
       junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
 
-      // archive all html + zips (debugarchives, downloaded bugreports)
       archiveArtifacts artifacts: 'reports/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip',
                        fingerprint: true, onlyIfSuccessful: false
 
-      // Publish just the latest report (index.html).
-      // Requires the "HTML Publisher" plugin.
+      // Publish just the latest report (index.html). Guard so missing plugin won't fail build.
       script {
         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
           publishHTML(target: [

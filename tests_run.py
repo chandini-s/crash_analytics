@@ -94,6 +94,7 @@ def run_selected_pytests(target: str) -> int:
     serial_no = get_serial_number(device_ip)
     board, display_name = get_product_details(device_ip)
     focused_app = get_focused_app(device_ip)
+
     ensure_reports_dir()
     stamp = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     html = str(REPORTS_DIR / f"report_{Path(target).name}_{stamp}.html")
@@ -136,7 +137,7 @@ def test_drive_from_jenkins():
     device_selector = device_ip if ":" in device_ip else f"{device_ip}:5555"
 
     # 3) metadata & focused app
-    serial = get_serial_number(device_selector) or device_selector
+    serial = get_serial_number(device_selector)
     board, display = get_product_details(device_selector)
     focused = get_focused_app(device_selector)
 
@@ -144,7 +145,9 @@ def test_drive_from_jenkins():
     print(f"Focused app: {focused}")
 
     # 4) choose suite (honor RUN_TARGET override)
-    run_target = os.getenv("RUN_TARGET", "auto")
+    run_target = (
+        os.getenv("RUN_TARGET") or os.getenv("TEST_TARGET")
+    )
     target_path = pick_target(focused, run_target)
     print(f"Running test target: {target_path} (override={run_target})")
 
