@@ -8,9 +8,6 @@ from modules.extraction import dump_event_main
 import utils as util
 from modules import generate_download as generate
 
-def _have_auth():
-    # same config locations used by events.py
-    return util.read_text(util.AUTH_PATH) or util.read_text(util.COOKIE_PATH)
 
 
 def test_events_bort():

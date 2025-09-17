@@ -7,11 +7,6 @@ from modules import events as ev
 
 import utils as util
 
-def _have_auth():
-    # same config locations used by events.py
-    return util.read_text(util.AUTH_PATH) or util.read_text(util.COOKIE_PATH)
-
-
 def test_events_Display():
     """
     End-to-end check:

@@ -82,9 +82,17 @@ def adb(*args, check=True):
     serial = get_selected_device()
     return _run(["adb", "-s", serial, *args], check=check)
 
-def get_serial_number(_: str | None = None) -> str:
+# def get_serial_number(_: str | None = None) -> str:
+#     """Return the Android ro.serialno of the selected device."""
+#     out = adb("shell", "getprop ro.serialno").stdout.strip()
+#     if not out:
+#         raise RuntimeError("ro.serialno is empty")
+#     return out
+
+
+def get_serial_number(serial: str | None = None) -> str:
     """Return the Android ro.serialno of the selected device."""
-    out = adb("shell", "getprop ro.serialno").stdout.strip()
+    out = adb(serial, ["shell", "getprop", "ro.serialno"]).stdout.strip()
     if not out:
         raise RuntimeError("ro.serialno is empty")
     return out
