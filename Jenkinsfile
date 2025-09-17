@@ -1,6 +1,5 @@
 pipeline {
   agent any
-  options { timestamps(); ansiColor('xterm') }
 
   // Keep parameters (you'll see the page, but values are remembered)
   parameters {
