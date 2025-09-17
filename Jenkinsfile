@@ -2,15 +2,16 @@ pipeline {
   agent any
 
 
-  // Keep parameters (Jenkins will show the page but remember last values)
   parameters {
-    string(name: 'DEVICE',    defaultValue: '', description: 'Serial/IP or IP:port')
-    text  (name: 'AUTH',      defaultValue: '', description: 'Auth header text (paste exact)')
-    text  (name: 'COOKIE',    defaultValue: '', description: 'Cookie header text (do NOT trim)')
+    string(name: 'DEVICE',    defaultValue: '', description: 'Serial(s)/IP(s); space or comma separated')
+    text  (name: 'AUTH',   defaultValue: '',             description: 'Auth header text')
+    text  (name: 'COOKIE', defaultValue: '',             description: 'Cookie header text')
+    booleanParam(name: 'ARCHIVE_ZIPS', defaultValue: true, description: 'Archive any *.zip downloads')
   }
 
   environment {
-    SEVEN_ZIP = "C:\\Program Files\\7-Zip\\7z.exe"
+    SEVEN_ZIP            = "C:\\Program Files\\7-Zip\\7z.exe"
+    DEFAULT_TEST_TARGET  = "tests_device_mode"   // CI-safe default if TEST_TARGET is empty
   }
 
   stages {
@@ -32,66 +33,42 @@ pipeline {
       }
     }
 
-    stage('Reset reports dir') {
+    stage('Prepare config & folders') {
       steps {
-        bat '''
-          if exist reports rmdir /s /q reports
-          mkdir reports
-          if exist downloaded_bugreports rmdir /s /q downloaded_bugreports
-          mkdir downloaded_bugreports
-          if not exist config mkdir config
-        '''
-      }
-    }
-
-    stage('Write runtime config from PARAMETERS') {
-      steps {
-        // <<< FIX: use the actual parameter names >>>
+        bat 'if not exist config mkdir config'
+        bat 'if not exist reports mkdir reports'
+        bat 'if not exist downloaded_bugreports mkdir downloaded_bugreports'
         script {
-          writeFile file: 'config/auth.txt',    text: (params.AUTH   ?: '')
-          writeFile file: 'config/cookie.txt',  text: (params.COOKIE ?: '')
-          writeFile file: 'config/devices.txt', text: (params.DEVICE ?: '')
+          writeFile file: 'config/auth.txt',    text: params.AUTH   ?: ''
+          writeFile file: 'config/cookie.txt',  text: params.COOKIE ?: ''
+          writeFile file: 'config/devices.txt', text: params.DEVICE    ?: ''
         }
-        bat """
-          echo === Using parameter values ===
-          echo DEVICE=%DEVICE%
-        """
       }
     }
 
     stage('Run tests (one suite, one time)') {
       steps {
         bat """
-          setlocal EnableDelayedExpansion
+          setlocal enabledelayedexpansion
 
-          rem ---- pass params to runner ----
-          rem <<< FIX: set DEVICE (not DEVICES) >>>
-          set DEVICE=%DEVICE%
+          rem ---- pass other params ----
+          set DEVICES=%DEVICES%
           set SEVEN_ZIP=%SEVEN_ZIP%
 
-          rem ---- CI-safe default to avoid 'auto' on Jenkins ----
-          rem <<< FIX: your runner reads RUN_TARGET, not TEST_TARGET >>>
-          if "%%RUN_TARGET%%"=="" if not "%%JENKINS_URL%%"=="" set RUN_TARGET=mtr
-
-          echo DEVICE=%%DEVICE%%
-          echo RUN_TARGET=%%RUN_TARGET%%
-          .venv\\Scripts\\python.exe tests_run.py
-          if errorlevel 1 exit /b 1
-        """
-      }
-    }
-
-    stage('Select latest report') {
-      steps {
-        bat """
-          setlocal EnableDelayedExpansion
-          set LATEST=
-          for /f "delims=" %%F in ('dir /b /a:-d /o:-d reports\\report_*.html') do (
-            set LATEST=%%F
-            goto :after
+          rem ---- IMPORTANT: You removed the TEST_TARGET param.
+          rem If TEST_TARGET is empty, Jenkins machines have no "focused app",
+          rem and your tests_run.py 'auto' path can trigger extra polling.
+          rem To keep ONE suite/ONE run in CI, force a safe default ONLY on Jenkins.
+          if "%TEST_TARGET%"=="" (
+            if not "%JENKINS_URL%"=="" (
+              set TEST_TARGET=%DEFAULT_TEST_TARGET%
+            )
           )
-          :after
-          if not "!LATEST!"=="" copy /Y "reports\\!LATEST!" "reports\\index.html" >nul
+
+          echo DEVICES=%DEVICES%
+          echo TEST_TARGET=%TEST_TARGET%   (empty means tests_run will decide)
+
+          .venv\\Scripts\\python.exe tests_run.py
         """
       }
     }
@@ -100,23 +77,21 @@ pipeline {
   post {
     always {
       junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
-
       archiveArtifacts artifacts: 'reports/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip',
-                       fingerprint: true, onlyIfSuccessful: false
-
-      // Publish just the latest report (index.html). Guard so missing plugin won't fail build.
+                        fingerprint: true, onlyIfSuccessful: false
       script {
         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-          publishHTML(target: [
-            reportDir: 'reports',
-            reportFiles: 'index.html',
-            reportName: 'Crash Analytics – Latest HTML Report',
-            keepAll: true,
-            allowMissing: true,
-            alwaysLinkToLastBuild: true
-          ])
-        }
-      }
+            publishHTML(target: [
+                reportDir: 'reports',
+                reportFiles: 'report_*.html',
+                reportName: "Crash Analytics – HTML Reports",
+                keepAll: true,
+                allowMissing: true,
+                alwaysLinkToLastBuild: true
+      ])
     }
   }
+ }
 }
+}
+
