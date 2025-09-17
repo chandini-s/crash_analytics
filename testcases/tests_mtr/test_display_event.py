@@ -37,7 +37,7 @@ def test_events_Display():
     # Build the fixed IST window used by the app code
     from_iso = ev.iso_ist(reboot_ist - timedelta(minutes=ev.PRE_REBOOT_MIN))
     to_iso = ev.iso_ist(reboot_ist + timedelta(minutes=ev.POST_REBOOT_MIN))
-    print(f"Fixed window (IST): {from_iso} → {to_iso}")
+    print(f"Fixed window (IST): {from_iso} to {to_iso}")
 
     # ---- 3) Poll for Bort_DiskStats ----
     deadline = datetime.now(ev.IST) + timedelta(minutes=ev.POLL_TIMEOUT_MIN)
@@ -51,7 +51,7 @@ def test_events_Display():
         if matches:
             match = matches[0]
             ts = ev.ts_ms_to_ist(match.get("timestamp")) if "timestamp" in match else "n/a"
-            print(f"✓ ConnectedDisplay found at {ts}")
+            print(f"ConnectedDisplay found at {ts}")
             found = True
             break
 

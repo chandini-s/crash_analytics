@@ -23,7 +23,7 @@ def test_on_demand_bugreport_appears():
             poll_minutes=10, poll_every_sec=60
         )
     except TimeoutError:
-        pytest.fail("✗ ON-DEMAND bugreport did not appear within the poll window.")
+        pytest.fail("ON-DEMAND bugreport did not appear within the poll window.")
     else:
         assert download_path and isinstance(download_path, str)
-        print(f"✓ Downloaded: {download_path}")
+        print(f"Downloaded: {download_path}")
