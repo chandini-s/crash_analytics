@@ -1,6 +1,5 @@
 pipeline {
   agent any
-  options { timestamps(); ansiColor('xterm') }
 
   // No TEST_TARGET param on purpose
   parameters {
