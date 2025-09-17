@@ -1,6 +1,5 @@
 pipeline {
   agent any
-  options { timestamps(); ansiColor('xterm') }
 
   // Parameters (pre-filled every time; you can just press Build)
   parameters {
