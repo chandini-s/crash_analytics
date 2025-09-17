@@ -1,17 +1,18 @@
 pipeline {
   agent any
+  options { timestamps(); ansiColor('xterm') }
 
-  // Parameters (pre-filled every time; you can just press Build)
+  // No TEST_TARGET param on purpose
   parameters {
     string(name: 'DEVICES',    defaultValue: '', description: 'Serial(s)/IP(s); space or comma separated')
     text  (name: 'AUTH_TXT',   defaultValue: '',             description: 'Auth header text')
     text  (name: 'COOKIE_TXT', defaultValue: '',             description: 'Cookie header text')
-    choice(name: 'TEST_SUITE', choices: ['tests_mtr','tests_zoom','tests_oobe'], description: 'Single suite to run')
     booleanParam(name: 'ARCHIVE_ZIPS', defaultValue: true, description: 'Archive any *.zip downloads')
   }
 
   environment {
-    SEVEN_ZIP = "C:\\Program Files\\7-Zip\\7z.exe"
+    SEVEN_ZIP            = "C:\\Program Files\\7-Zip\\7z.exe"
+    DEFAULT_TEST_TARGET  = "tests_device_mode"   // CI-safe default if TEST_TARGET is empty
   }
 
   stages {
@@ -37,12 +38,11 @@ pipeline {
       steps {
         bat 'if not exist config mkdir config'
         bat 'if not exist reports mkdir reports'
-        bat 'if not exist downloads mkdir downloads'
-        // Use Jenkins writeFile so special characters in headers are safe on Windows
+        bat 'if not exist downloaded_bugreports mkdir downloaded_bugreports'
         script {
-          writeFile file: 'config/auth.txt',   text: params.AUTH_TXT ?: ''
-          writeFile file: 'config/cookie.txt', text: params.COOKIE_TXT ?: ''
-          writeFile file: 'config/devices.txt', text: params.DEVICES ?: ''
+          writeFile file: 'config/auth.txt',    text: params.AUTH_TXT   ?: ''
+          writeFile file: 'config/cookie.txt',  text: params.COOKIE_TXT ?: ''
+          writeFile file: 'config/devices.txt', text: params.DEVICES    ?: ''
         }
       }
     }
@@ -51,20 +51,25 @@ pipeline {
       steps {
         bat """
           setlocal enabledelayedexpansion
+
+          rem ---- pass other params ----
           set DEVICES=%DEVICES%
-          set TEST_TARGET=%TEST_SUITE%
           set SEVEN_ZIP=%SEVEN_ZIP%
 
-          echo === Running %TEST_TARGET% ===
-          .venv\\Scripts\\python.exe tests_run.py
-
-          rem If your suite already created an HTML in reports\\report_*.html this is a no-op.
-          rem Fallback: generate a minimal pytest HTML so publishHTML always has something.
-          dir /b reports\\report_%TEST_TARGET%_*.html >nul 2>&1
-          if errorlevel 1 (
-            echo No suite HTML found, creating one via pytest...
-            .venv\\Scripts\\pytest.exe %TEST_TARGET% -q --maxfail=1 --html "reports\\report_%TEST_TARGET%_%BUILD_NUMBER%.html" --self-contained-html
+          rem ---- IMPORTANT: You removed the TEST_TARGET param.
+          rem If TEST_TARGET is empty, Jenkins machines have no "focused app",
+          rem and your tests_run.py 'auto' path can trigger extra polling.
+          rem To keep ONE suite/ONE run in CI, force a safe default ONLY on Jenkins.
+          if "%TEST_TARGET%"=="" (
+            if not "%JENKINS_URL%"=="" (
+              set TEST_TARGET=%DEFAULT_TEST_TARGET%
+            )
           )
+
+          echo DEVICES=%DEVICES%
+          echo TEST_TARGET=%TEST_TARGET%   (empty means tests_run will decide)
+
+          .venv\\Scripts\\python.exe tests_run.py
         """
       }
     }
@@ -73,11 +78,13 @@ pipeline {
   post {
     always {
       junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
-      archiveArtifacts artifacts: 'reports/*.html, downloads/**/*.zip, **/debugarchive_*.zip', fingerprint: true, onlyIfSuccessful: false
+      archiveArtifacts artifacts: 'reports/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip',
+                        fingerprint: true, onlyIfSuccessful: false
+
       publishHTML(target: [
         reportDir: 'reports',
         reportFiles: 'report_*.html',
-        reportName: "Crash Analytics – ${params.TEST_SUITE}",
+        reportName: "Crash Analytics – HTML Reports",
         keepAll: true,
         allowMissing: true,
         alwaysLinkToLastBuild: true
