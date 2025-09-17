@@ -44,7 +44,11 @@ pipeline {
           def branches = [:]
           ips.each { ip ->
             branches["run_${ip}"] = {
-              bat """
+                bat """
+                chcp 65001 > NUL
+                set PYTHONUTF8=1
+                set PYTHONIOENCODING=utf-8
+
                 call .venv\\Scripts\\activate.bat
                 set DEVICES=${ip}
                 set TEST_TARGET=${params.TEST_TARGET}
