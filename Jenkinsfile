@@ -5,7 +5,7 @@ pipeline {
   // Jenkins exposes values as params.* and env.* automatically.
 
     parameters {
-        string(name: 'DEVICE', defaultValue: '', description: 'Serial/IP or IP:port')
+        string(name: 'DEVICE', defaultValue: '', description: 'Serial/IP or IP:port of target device')
     }
   environment {
     SEVEN_ZIP = ''   // we will auto-detect at runtime if empty
@@ -125,8 +125,7 @@ pipeline {
   post {
     always {
       junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
-      archiveArtifacts artifacts: 'reports/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip',
-                       fingerprint: true, onlyIfSuccessful: false
+
       script {
         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
           publishHTML(target: [
@@ -135,6 +134,8 @@ pipeline {
             reportName: 'Crash Analytics – Latest HTML Report',
             keepAll: true, allowMissing: true, alwaysLinkToLastBuild: true
           ])
+          archiveArtifacts artifacts: 'reports/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip',
+                       fingerprint: true, onlyIfSuccessful: false
         }
       }
     }

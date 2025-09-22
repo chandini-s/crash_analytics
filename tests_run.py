@@ -28,11 +28,11 @@ def _pick_target_by_focus(focused: str) -> str:
         return "testcases/tests_oobe"
     return "testcases/tests_device_mode"
 
-def pytest_configure(config):
-    """Remove unwanted environment metadata from pytest-html report"""
-    metadata = getattr(config, "_metadata", {})
+def pytest_metadata(metadata):
+    # Remove unwanted keys
     for key in ["JAVA_HOME", "WORKSPACE", "GIT_URL"]:
         metadata.pop(key, None)
+
 
 def main() -> int:
     device = get_selected_device()
@@ -55,13 +55,16 @@ def main() -> int:
 
     REPORT_FILE = os.getenv("REPORT_FILE","index.html")
     ts = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    html = str((REPORTS_DIR / REPORT_FILE).resolve())
+    html = (REPORTS_DIR / REPORT_FILE).resolve()
+    junit_xml = (REPORTS_DIR / "results.xml").resolve()
     args = [
         target,
         "-q",
         "--maxfail=1",
         "--disable-warnings",
-        "--html", html, "--self-contained-html",
+        "--html", str(html),
+        "--self-contained-html",
+        f"--junit-xml={junit_xml}",
     ]
     return pytest.main(args)
 
