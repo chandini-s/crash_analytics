@@ -28,14 +28,11 @@ def _pick_target_by_focus(focused: str) -> str:
         return "testcases/tests_oobe"
     return "testcases/tests_device_mode"
 
-def pytest_metadata(metadata):
-    # Remove unwanted keys
-    for key in ["JAVA_HOME", "WORKSPACE", "GIT_URL"]:
-        metadata.pop(key, None)
-
-
 def main() -> int:
     device = get_selected_device()
+    os.environ.pop("JAVA_HOME", None) # avoid leaking env to pytest-html
+    os.environ.pop("WORKSPACE", None)
+    os.environ.pop("GIT_URL", None)
 
     # selector for adb utils (use ip:port if only IP is given)
     selector = device if ":" in device else f"{device}:5555"
