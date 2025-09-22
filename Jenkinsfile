@@ -1,11 +1,11 @@
 pipeline {
-  // Change to a label if you want to pin to a node (e.g. 'mac-mini' or 'windows-local')
   agent any
 
-  // No `parameters {}` on purpose. Set DEVICE/AUTH/COOKIE in:
-  // Job → Configure → Build Environment → Environment variables
+  // No parameters{} required. If you use "This project is parameterized",
+  // Jenkins exposes values as params.* and env.* automatically.
+
   environment {
-    SEVEN_ZIP = ''   // we will auto-detect per-OS at runtime if this is empty
+    SEVEN_ZIP = ''   // we will auto-detect at runtime if empty
   }
 
   stages {
@@ -41,21 +41,9 @@ pipeline {
       }
     }
 
-    stage('Prep workspace dirs + config (from ENV)') {
+    stage('Prep workspace dirs') {
       steps {
-        // Write files using Jenkins, not shell, to avoid quoting/expansion issues
         script {
-          // prefer env.* (Configure), fall back to params.* if present
-          def dev    = (env.DEVICE ?: params.DEVICE ?: '')
-          def auth   = (env.AUTH   ?: params.AUTH   ?: '')
-          def cookie = (env.COOKIE ?: params.COOKIE ?: '')
-
-          // fail fast if required input missing
-          if (!dev) {
-            error "DEVICE is empty. Set it in Job → Configure → Build Environment → Environment variables."
-          }
-
-          // recreate dirs
           if (isUnix()) {
             sh 'rm -rf "$WORKSPACE/reports" "$WORKSPACE/downloaded_bugreports" "$WORKSPACE/config" && mkdir -p "$WORKSPACE/reports" "$WORKSPACE/downloaded_bugreports" "$WORKSPACE/config"'
           } else {
@@ -66,29 +54,44 @@ pipeline {
               mkdir "%WORKSPACE%\\reports" "%WORKSPACE%\\downloaded_bugreports" "%WORKSPACE%\\config"
             '''
           }
-
-          // write runtime config files
-          writeFile file: 'config/devices.txt', text: dev
-          writeFile file: 'config/auth.txt',    text: auth
-          writeFile file: 'config/cookie.txt',  text: cookie
         }
       }
     }
 
-    stage('Run tests (focused app decides)') {
+    stage('Write runtime config (SAFE)') {
+      steps {
+        script {
+          // Prefer env (Configure → Build Environment or Parameter defaults), then params
+          def dev    = (env.DEVICE ?: params.DEVICE ?: '').trim()
+          def auth   = (env.AUTH   ?: params.AUTH   ?: '')
+          def cookie = (env.COOKIE ?: params.COOKIE ?: '')
+
+          if (!dev) {
+            error "DEVICE is empty. Set it in Configure (either as ENV under Build Environment or as a String Parameter default)."
+          }
+
+          writeFile file: 'config/devices.txt', text: dev
+          writeFile file: 'config/auth.txt',    text: auth
+          writeFile file: 'config/cookie.txt',  text: cookie
+
+          echo "DEVICE='${dev}'"   // non-secret; helpful to confirm in Console Output
+        }
+      }
+    }
+
+    stage('Run tests') {
       steps {
         script {
           if (isUnix()) {
             sh '''
               set -e
-              export DEVICE="${DEVICE}"
               export REPORTS_DIR="$WORKSPACE/reports"
               export REPORT_FILE="index.html"
               mkdir -p "$REPORTS_DIR"
 
-              # Robust 7-Zip detect on mac/Linux
+              # mac/Linux 7-Zip detect
               export SEVEN_ZIP="${SEVEN_ZIP:-$(command -v 7zz || command -v 7z || true)}"
-              echo "SEVEN_ZIP=${SEVEN_ZIP:-<none>}   DEVICE=${DEVICE}   REPORTS_DIR=$REPORTS_DIR"
+              echo "SEVEN_ZIP=${SEVEN_ZIP:-<none>}"
 
               . .venv/bin/activate
               python3 tests_run.py
@@ -96,12 +99,11 @@ pipeline {
           } else {
             bat '''
               setlocal EnableDelayedExpansion
-
               set "REPORTS_DIR=%WORKSPACE%\\reports"
               set "REPORT_FILE=index.html"
               if not exist "%REPORTS_DIR%" mkdir "%REPORTS_DIR%"
 
-              rem ===== Robust 7-Zip auto-detect (no ProgramFiles parsing) =====
+              rem Robust 7-Zip auto-detect
               if "%SEVEN_ZIP%"=="" (
                 for /f "usebackq delims=" %%P in (`where 7z.exe 2^>nul`) do set "SEVEN_ZIP=%%P"
                 if not defined SEVEN_ZIP for /f "usebackq delims=" %%P in (`where 7zz.exe 2^>nul`) do set "SEVEN_ZIP=%%P"
@@ -122,16 +124,13 @@ pipeline {
       junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
       archiveArtifacts artifacts: 'reports/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip',
                        fingerprint: true, onlyIfSuccessful: false
-      // Publish the single stable HTML file we wrote (reports/index.html)
       script {
         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
           publishHTML(target: [
             reportDir: 'reports',
             reportFiles: 'index.html',
             reportName: 'Crash Analytics – Latest HTML Report',
-            keepAll: true,
-            allowMissing: true,
-            alwaysLinkToLastBuild: true
+            keepAll: true, allowMissing: true, alwaysLinkToLastBuild: true
           ])
         }
       }
