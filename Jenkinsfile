@@ -129,3 +129,13 @@ pipeline {
           publishHTML(target: [
             reportDir: 'reports',
             reportFiles: 'index.html',
+            reportName: 'Crash Analytics – Latest HTML Report',
+            keepAll: true,
+            allowMissing: true,
+            alwaysLinkToLastBuild: true
+          ])
+        }
+      }
+    }
+  }
+}
