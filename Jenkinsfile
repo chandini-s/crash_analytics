@@ -46,7 +46,7 @@ pipeline {
         // Write files using Jenkins, not shell, to avoid quoting/expansion issues
         script {
           // prefer env.* (Configure), fall back to params.* if present
-          def dev    = (env.DEVICE ?: params.DEVICE ?: '').trim()
+          def dev    = (env.DEVICE ?: params.DEVICE ?: '')
           def auth   = (env.AUTH   ?: params.AUTH   ?: '')
           def cookie = (env.COOKIE ?: params.COOKIE ?: '')
 
