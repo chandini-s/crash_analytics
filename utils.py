@@ -28,52 +28,63 @@ def _pick_serial_from_devices_listing(match: str) -> Optional[str]:
                 return serial
     return None
 
-
 def get_selected_device() -> str:
     """
     Resolve and cache the selected device serial.
-    Jenkins can pass either:
-      - DEVICE   = '10.91.231.25' or '10.91.231.25:5555' or a serial
-      - DEVICES  = 'ip1,ip2,...'  (first is used)
-    Fallback: exactly one attached device.
+
+    Jenkins can pass:
+      DEVICE  = '10.91.231.25' or '10.91.231.25:5555' or a USB serial
+      DEVICES = 'ip1, ip2, ...' (first non-empty is used)
+    Fallback: first non-empty line from <WORKSPACE>/config/devices.txt
     """
     global _SELECTED_SERIAL
     if _SELECTED_SERIAL:
         return _SELECTED_SERIAL
 
-    # 1) Jenkins env
-    dev = (os.getenv("DEVICE") or "").strip()
+    # 1) Jenkins env: DEVICE first, then DEVICES list
+    def _clean(s: str) -> str:
+        return s.strip().strip('"').strip("'")
+
+    dev = _clean(os.getenv("DEVICE", ""))
     if not dev:
-        # allow a list: take the first non-empty entry
-        devs = [p.strip() for p in re.split(r"[,;\s]+", os.getenv("DEVICES", "")) if p.strip()]
-        if devs:
-            dev = devs[0]
+        raw = os.getenv("DEVICES", "")
+        if raw:
+            for tok in re.split(r"[,\s]+", raw):
+                tok = _clean(tok)
+                if tok:
+                    dev = tok
+                    break
 
-    if dev:
-        # If IP given, ensure :5555 and adb connect
-        if re.match(r"^\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?$", dev):
-            ip = dev if ":" in dev else f"{dev}:5555"
-            _run(["adb", "disconnect", ip], check=False)  # avoid stale state
-            _run(["adb", "connect", ip], check=False)
-            serial = _pick_serial_from_devices_listing(ip)
-            if not serial:
-                raise RuntimeError(f"Connected to {ip}, but couldn't resolve its serial from 'adb devices -l'.")
-        else:
-            # looks like a serial already
-            serial = dev
-        _SELECTED_SERIAL = serial
-        os.environ["ADB_SERIAL"] = serial  # convenience for tools that honor it
-        return serial
+    # 2) Fallback: Jenkins workspace file written by pipeline
+    if not dev:
+        ws = os.getenv("WORKSPACE", ".")
+        f = Path(ws) / "config" / "devices.txt"
+        if f.exists():
+            for line in f.read_text().splitlines():
+                line = _clean(line)
+                if line:
+                    dev = line
+                    break
 
-    # 2) Fallback: exactly one attached device
-    out = _run(["adb", "devices"], check=False).stdout.splitlines()
-    serials = [l.split()[0] for l in out if l.strip().endswith("device") and not l.startswith("List of")]
-    if len(serials) != 1:
-        raise RuntimeError("Zero or multiple devices attached. Set DEVICE/DEVICES in Jenkins.")
-    _SELECTED_SERIAL = serials[0]
-    os.environ["ADB_SERIAL"] = _SELECTED_SERIAL
-    return _SELECTED_SERIAL
+    if not dev:
+        raise RuntimeError(
+            "DEVICE not provided. Set DEVICE in Jenkins (or put one line in config/devices.txt)."
+        )
 
+    # 3) If it's an IP, normalize to :5555 and connect; else treat as serial
+    ip_re = re.compile(r"^\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?$")
+    if ip_re.match(dev):
+        ip = dev if ":" in dev else f"{dev}:5555"
+        _run(["adb", "disconnect", ip], check=False)  # avoid stale sessions
+        _run(["adb", "connect", ip], check=False)
+        serial = _pick_serial_from_devices_listing(ip)
+        if not serial:
+            raise RuntimeError(f"Connected to {ip}, but could not resolve serial from `adb devices -l`.")
+    else:
+        serial = dev  # already a USB serial
+
+    _SELECTED_SERIAL = serial
+    return serial
 
 def adb(serial: str, args=None, check=True, timeout=None):
     """Wrapper that always scopes to the selected device."""
@@ -84,13 +95,6 @@ def adb(serial: str, args=None, check=True, timeout=None):
         args = args.split()
     cmd = ["adb", "-s", str(serial)] + list(args)
     return subprocess.run(cmd, text=True, capture_output=True, check=check, timeout=timeout)
-
-# def get_serial_number(_: str | None = None) -> str:
-#     """Return the Android ro.serialno of the selected device."""
-#     out = adb("shell", "getprop ro.serialno").stdout.strip()
-#     if not out:
-#         raise RuntimeError("ro.serialno is empty")
-#     return out
 
 
 def get_serial_number(device_selected: str ) -> str | None:

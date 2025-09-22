@@ -5,7 +5,7 @@ pipeline {
   // Jenkins exposes values as params.* and env.* automatically.
 
     parameters {
-        string(name: 'DEVICE', defaultValue: '10.91.231.82', description: 'Serial/IP or IP:port')
+        string(name: 'DEVICE', defaultValue: '', description: 'Serial/IP or IP:port')
     }
   environment {
     SEVEN_ZIP = ''   // we will auto-detect at runtime if empty
