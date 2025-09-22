@@ -12,11 +12,11 @@ Fetches device mode from Logitech Analytics API.
 from __future__ import annotations
 from typing import Optional, Dict, Any
 import requests
-from utils import build_headers
+from utils import build_headers, get_serial_number, get_selected_device
 
 API_BASE = "https://logi-analytics.vc.logitech.com/api"
-DEVICE_ID = "2411FD1LG0A2"  # replace or pass in to functions as needed
-
+DEVICE = get_selected_device()
+DEVICE_ID = get_serial_number(DEVICE)
 REQUEST_TIMEOUT = 30.0
 
 

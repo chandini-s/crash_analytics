@@ -34,6 +34,11 @@ def _pick_target_by_focus(focused: str) -> str:
         return "testcases/tests_oobe"
     return "testcases/tests_device_mode"
 
+def pytest_configure(config):
+    """Remove unwanted environment metadata from pytest-html report"""
+    metadata = getattr(config, "_metadata", {})
+    for key in ["JAVA_HOME", "WORKSPACE", "GIT_URL"]:
+        metadata.pop(key, None)
 
 def main() -> int:
     device = _device_from_env()
