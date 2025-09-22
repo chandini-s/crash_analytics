@@ -93,19 +93,17 @@ pipeline {
               python3 tests_run.py
             '''
           } else {
-            bat """
-              if "%DEVICE%"=="" (
-                echo ERROR: Set DEVICE in job Configure ^> This project is parameterized & exit /b 2
-              )
+           bat """
+               if "%DEVICE%"=="" (
+               echo ERROR: Set DEVICE in job Configure ^> This project is parameterized & exit /b 2
+               )
               set REPORTS_DIR=%WORKSPACE%\\reports
               set REPORT_FILE=index.html
               if not exist "%REPORTS_DIR%" mkdir "%REPORTS_DIR%"
 
               rem Auto-detect 7-Zip if not provided
-              if "%SEVEN_ZIP%"=="" (
-                if exist "%ProgramFiles%\\7-Zip\\7z.exe" set SEVEN_ZIP=%ProgramFiles%\\7-Zip\\7z.exe
-                if exist "%ProgramFiles(x86)%\\7-Zip\\7z.exe" set SEVEN_ZIP=%ProgramFiles(x86)%\\7-Zip\\7z.exe
-              )
+              if "%SEVEN_ZIP%"=="" if exist "%ProgramFiles%\\7-Zip\\7z.exe" set SEVEN_ZIP=%ProgramFiles%\\7-Zip\\7z.exe
+              if "%SEVEN_ZIP%"=="" if exist "%ProgramFiles(x86)%\\7-Zip\\7z.exe" set SEVEN_ZIP=%ProgramFiles(x86)%\\7-Zip\\7z.exe
 
               .venv\\Scripts\\python.exe tests_run.py
               if errorlevel 1 exit /b 1
