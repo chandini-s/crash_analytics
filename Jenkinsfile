@@ -1,7 +1,6 @@
 pipeline {
   // Change to a label if you want to pin to a node (e.g. 'mac-mini' or 'windows-local')
   agent any
-  options { timestamps(); ansiColor('xterm') }
 
   // No `parameters {}` on purpose. Set DEVICE/AUTH/COOKIE in:
   // Job → Configure → Build Environment → Environment variables
