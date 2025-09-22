@@ -1,10 +1,13 @@
 pipeline {
-  // Run on whatever node you choose. For Mac-only, set: agent { label 'mac-mini' }
+  // Change if you want to pin to a node label (e.g., 'mac-mini' or 'windows-local')
   agent any
-  // No parameters block here — set DEVICE/AUTH/COOKIE in the job's Configure page.
+  options { timestamps(); ansiColor('xterm') }
+
+  // No `parameters {}` on purpose — values come from job Configure → Build Environment → Environment variables
+  // Add there: DEVICE, AUTH, COOKIE
 
   environment {
-    SEVEN_ZIP = ''  // we'll auto-detect per-OS below
+    SEVEN_ZIP = ''  // auto-detect per-OS below
   }
 
   stages {
@@ -40,7 +43,7 @@ pipeline {
       }
     }
 
-    stage('Prep workspace dirs') {
+    stage('Prep workspace dirs + config (from ENV)') {
       steps {
         script {
           if (isUnix()) {
@@ -48,62 +51,65 @@ pipeline {
               set -e
               rm -rf "$WORKSPACE/reports" "$WORKSPACE/downloaded_bugreports" "$WORKSPACE/config"
               mkdir -p "$WORKSPACE/reports" "$WORKSPACE/downloaded_bugreports" "$WORKSPACE/config"
+
+              # Write ENV values to files (your utils can read env first, then these files as fallback)
+              printf "%s" "${AUTH:-}"   > "$WORKSPACE/config/auth.txt"
+              printf "%s" "${COOKIE:-}" > "$WORKSPACE/config/cookie.txt"
+              printf "%s" "${DEVICE:-}" > "$WORKSPACE/config/devices.txt"
             '''
           } else {
             bat """
               if exist "%WORKSPACE%\\reports" rmdir /s /q "%WORKSPACE%\\reports"
               if exist "%WORKSPACE%\\downloaded_bugreports" rmdir /s /q "%WORKSPACE%\\downloaded_bugreports"
-              if not exist "%WORKSPACE%\\reports" mkdir "%WORKSPACE%\\reports"
-              if not exist "%WORKSPACE%\\downloaded_bugreports" mkdir "%WORKSPACE%\\downloaded_bugreports"
-              if not exist "%WORKSPACE%\\config" mkdir "%WORKSPACE%\\config"
+              if exist "%WORKSPACE%\\config" rmdir /s /q "%WORKSPACE%\\config"
+              mkdir "%WORKSPACE%\\reports" "%WORKSPACE%\\downloaded_bugreports" "%WORKSPACE%\\config"
+
+              call :WRITE "%WORKSPACE%\\config\\auth.txt" "%%AUTH%%"
+              call :WRITE "%WORKSPACE%\\config\\cookie.txt" "%%COOKIE%%"
+              call :WRITE "%WORKSPACE%\\config\\devices.txt" "%%DEVICE%%"
+              goto :NEXT
+              :WRITE
+              > %~1 (echo|set /p=%~2)
+              exit /b 0
+              :NEXT
             """
           }
         }
       }
     }
 
-    stage('Write runtime config from Jenkins parameters') {
-      steps {
-        // These env vars come from the job's Configure → parameters you saved
-        script {
-          writeFile file: 'config/auth.txt',    text: (env.AUTH   ?: '')
-          writeFile file: 'config/cookie.txt',  text: (env.COOKIE ?: '')
-          writeFile file: 'config/devices.txt', text: (env.DEVICE ?: '')
-        }
-      }
-    }
-
-    stage('Run tests (focused-app decides the suite)') {
+    stage('Run tests (focused app decides)') {
       steps {
         script {
           if (isUnix()) {
             sh '''
               set -e
-              : "${DEVICE:?Set DEVICE in job Configure → This project is parameterized}"
+              : "${DEVICE:?Set DEVICE in job Configure → Build Environment → Environment variables}"
+
               export DEVICE="${DEVICE}"
+              export REPORTS_DIR="$WORKSPACE/reports"   # Python writes here
+              export REPORT_FILE="index.html"           # single stable filename
 
-              # Tell Python to put the report inside the Jenkins workspace
-              export REPORTS_DIR="$WORKSPACE/reports"
-              export REPORT_FILE="index.html"
-
-              # Find 7-zip if available (Homebrew p7zip installs 7zz)
+              # Find 7-Zip if available (Homebrew p7zip installs 7zz)
               export SEVEN_ZIP="${SEVEN_ZIP:-$(command -v 7zz || command -v 7z || true)}"
 
               . .venv/bin/activate
               python3 tests_run.py
             '''
           } else {
-           bat """
-               if "%DEVICE%"=="" (
-               echo ERROR: Set DEVICE in job Configure ^> This project is parameterized & exit /b 2
-               )
+            bat """
+              if "%%DEVICE%%"=="" (
+                echo ERROR: Set DEVICE under Configure ^> Build Environment ^> Environment variables & exit /b 2
+              )
               set REPORTS_DIR=%WORKSPACE%\\reports
               set REPORT_FILE=index.html
-              if not exist "%REPORTS_DIR%" mkdir "%REPORTS_DIR%"
+              if not exist "%%REPORTS_DIR%%" mkdir "%%REPORTS_DIR%%"
 
               rem Auto-detect 7-Zip if not provided
-              if "%SEVEN_ZIP%"=="" if exist "%ProgramFiles%\\7-Zip\\7z.exe" set SEVEN_ZIP=%ProgramFiles%\\7-Zip\\7z.exe
-              if "%SEVEN_ZIP%"=="" if exist "%ProgramFiles(x86)%\\7-Zip\\7z.exe" set SEVEN_ZIP=%ProgramFiles(x86)%\\7-Zip\\7z.exe
+              if "%%SEVEN_ZIP%%"=="" (
+                if exist "%%ProgramFiles%%\\7-Zip\\7z.exe" set SEVEN_ZIP=%%ProgramFiles%%\\7-Zip\\7z.exe
+                if exist "%%ProgramFiles(x86)%%\\7-Zip\\7z.exe" set SEVEN_ZIP=%%ProgramFiles(x86)%%\\7-Zip\\7z.exe
+              )
 
               .venv\\Scripts\\python.exe tests_run.py
               if errorlevel 1 exit /b 1
@@ -119,7 +125,6 @@ pipeline {
       junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
       archiveArtifacts artifacts: 'reports/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip',
                        fingerprint: true, onlyIfSuccessful: false
-      // If HTML Publisher plugin is missing, this won't fail the whole build
       script {
         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
           publishHTML(target: [
