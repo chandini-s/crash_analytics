@@ -23,6 +23,12 @@ def _device_from_env() -> str:
             return first[0]
     raise SystemExit("ERROR: DEVICE/DEVICES not set in Jenkins parameters.")
 
+def _reports_dir() -> Path:
+    rd = os.getenv("REPORTS_DIR")
+    if rd: return Path(rd)
+    ws = os.getenv("WORKSPACE")
+    if ws: return Path(ws) / "reports"
+    return Path(__file__).resolve().parent / "reports"
 
 def _pick_target_by_focus(focused: str) -> str:
     f = (focused or "").lower()
@@ -56,10 +62,12 @@ def main() -> int:
     target = _pick_target_by_focus(focused)
     print(f"Running test target: {target} (based on focused app)")
 
-    REPORTS.mkdir(parents=True, exist_ok=True)
-    ts = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    html = str(REPORTS / f"report_{Path(target).name}_{ts}.html")
+    REPORTS_DIR = _reports_dir()
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
+    REPORT_FILE = os.getenv("REPORT_FILE","index.html")
+    ts = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    html = str((REPORTS_DIR / REPORT_FILE).reslove())
     args = [
         target,
         "-q",
