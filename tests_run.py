@@ -55,7 +55,7 @@ def main() -> int:
 
     REPORT_FILE = os.getenv("REPORT_FILE","index.html")
     ts = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    html = str((REPORTS_DIR / REPORT_FILE).reslove())
+    html = str((REPORTS_DIR / REPORT_FILE).resolve())
     args = [
         target,
         "-q",
