@@ -1,12 +1,12 @@
 pipeline {
-  // Change if you want to pin to a node label (e.g., 'mac-mini' or 'windows-local')
+  // Change to a label if you want to pin to a node (e.g. 'mac-mini' or 'windows-local')
   agent any
+  options { timestamps(); ansiColor('xterm') }
 
-  // No `parameters {}` on purpose — values come from job Configure → Build Environment → Environment variables
-  // Add there: DEVICE, AUTH, COOKIE
-
+  // No `parameters {}` on purpose. Set DEVICE/AUTH/COOKIE in:
+  // Job → Configure → Build Environment → Environment variables
   environment {
-    SEVEN_ZIP = ''  // auto-detect per-OS below
+    SEVEN_ZIP = ''   // we will auto-detect per-OS at runtime if this is empty
   }
 
   stages {
@@ -44,35 +44,34 @@ pipeline {
 
     stage('Prep workspace dirs + config (from ENV)') {
       steps {
+        // Write files using Jenkins, not shell, to avoid quoting/expansion issues
         script {
-          if (isUnix()) {
-            sh '''
-              set -e
-              rm -rf "$WORKSPACE/reports" "$WORKSPACE/downloaded_bugreports" "$WORKSPACE/config"
-              mkdir -p "$WORKSPACE/reports" "$WORKSPACE/downloaded_bugreports" "$WORKSPACE/config"
+          // prefer env.* (Configure), fall back to params.* if present
+          def dev    = (env.DEVICE ?: params.DEVICE ?: '').trim()
+          def auth   = (env.AUTH   ?: params.AUTH   ?: '')
+          def cookie = (env.COOKIE ?: params.COOKIE ?: '')
 
-              # Write ENV values to files (your utils can read env first, then these files as fallback)
-              printf "%s" "${AUTH:-}"   > "$WORKSPACE/config/auth.txt"
-              printf "%s" "${COOKIE:-}" > "$WORKSPACE/config/cookie.txt"
-              printf "%s" "${DEVICE:-}" > "$WORKSPACE/config/devices.txt"
-            '''
+          // fail fast if required input missing
+          if (!dev) {
+            error "DEVICE is empty. Set it in Job → Configure → Build Environment → Environment variables."
+          }
+
+          // recreate dirs
+          if (isUnix()) {
+            sh 'rm -rf "$WORKSPACE/reports" "$WORKSPACE/downloaded_bugreports" "$WORKSPACE/config" && mkdir -p "$WORKSPACE/reports" "$WORKSPACE/downloaded_bugreports" "$WORKSPACE/config"'
           } else {
-            bat """
+            bat '''
               if exist "%WORKSPACE%\\reports" rmdir /s /q "%WORKSPACE%\\reports"
               if exist "%WORKSPACE%\\downloaded_bugreports" rmdir /s /q "%WORKSPACE%\\downloaded_bugreports"
               if exist "%WORKSPACE%\\config" rmdir /s /q "%WORKSPACE%\\config"
               mkdir "%WORKSPACE%\\reports" "%WORKSPACE%\\downloaded_bugreports" "%WORKSPACE%\\config"
-
-              call :WRITE "%WORKSPACE%\\config\\auth.txt" "%%AUTH%%"
-              call :WRITE "%WORKSPACE%\\config\\cookie.txt" "%%COOKIE%%"
-              call :WRITE "%WORKSPACE%\\config\\devices.txt" "%%DEVICE%%"
-              goto :NEXT
-              :WRITE
-              > %~1 (echo|set /p=%~2)
-              exit /b 0
-              :NEXT
-            """
+            '''
           }
+
+          // write runtime config files
+          writeFile file: 'config/devices.txt', text: dev
+          writeFile file: 'config/auth.txt',    text: auth
+          writeFile file: 'config/cookie.txt',  text: cookie
         }
       }
     }
@@ -83,36 +82,36 @@ pipeline {
           if (isUnix()) {
             sh '''
               set -e
-              : "${DEVICE:?Set DEVICE in job Configure → Build Environment → Environment variables}"
-
               export DEVICE="${DEVICE}"
-              export REPORTS_DIR="$WORKSPACE/reports"   # Python writes here
-              export REPORT_FILE="index.html"           # single stable filename
+              export REPORTS_DIR="$WORKSPACE/reports"
+              export REPORT_FILE="index.html"
+              mkdir -p "$REPORTS_DIR"
 
-              # Find 7-Zip if available (Homebrew p7zip installs 7zz)
+              # Robust 7-Zip detect on mac/Linux
               export SEVEN_ZIP="${SEVEN_ZIP:-$(command -v 7zz || command -v 7z || true)}"
+              echo "SEVEN_ZIP=${SEVEN_ZIP:-<none>}   DEVICE=${DEVICE}   REPORTS_DIR=$REPORTS_DIR"
 
               . .venv/bin/activate
               python3 tests_run.py
             '''
           } else {
-            bat """
-              if "%%DEVICE%%"=="" (
-                echo ERROR: Set DEVICE under Configure ^> Build Environment ^> Environment variables & exit /b 2
-              )
-              set REPORTS_DIR=%WORKSPACE%\\reports
-              set REPORT_FILE=index.html
-              if not exist "%%REPORTS_DIR%%" mkdir "%%REPORTS_DIR%%"
+            bat '''
+              setlocal EnableDelayedExpansion
 
-              rem Auto-detect 7-Zip if not provided
-              if "%%SEVEN_ZIP%%"=="" (
-                if exist "%%ProgramFiles%%\\7-Zip\\7z.exe" set SEVEN_ZIP=%%ProgramFiles%%\\7-Zip\\7z.exe
-                if exist "%%ProgramFiles(x86)%%\\7-Zip\\7z.exe" set SEVEN_ZIP=%%ProgramFiles(x86)%%\\7-Zip\\7z.exe
+              set "REPORTS_DIR=%WORKSPACE%\\reports"
+              set "REPORT_FILE=index.html"
+              if not exist "%REPORTS_DIR%" mkdir "%REPORTS_DIR%"
+
+              rem ===== Robust 7-Zip auto-detect (no ProgramFiles parsing) =====
+              if "%SEVEN_ZIP%"=="" (
+                for /f "usebackq delims=" %%P in (`where 7z.exe 2^>nul`) do set "SEVEN_ZIP=%%P"
+                if not defined SEVEN_ZIP for /f "usebackq delims=" %%P in (`where 7zz.exe 2^>nul`) do set "SEVEN_ZIP=%%P"
               )
+              echo SEVEN_ZIP=%SEVEN_ZIP%
 
               .venv\\Scripts\\python.exe tests_run.py
               if errorlevel 1 exit /b 1
-            """
+            '''
           }
         }
       }
@@ -124,16 +123,9 @@ pipeline {
       junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
       archiveArtifacts artifacts: 'reports/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip',
                        fingerprint: true, onlyIfSuccessful: false
+      // Publish the single stable HTML file we wrote (reports/index.html)
       script {
         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
           publishHTML(target: [
             reportDir: 'reports',
             reportFiles: 'index.html',
-            reportName: 'Crash Analytics – Latest HTML Report',
-            keepAll: true, allowMissing: true, alwaysLinkToLastBuild: true
-          ])
-        }
-      }
-    }
-  }
-}
