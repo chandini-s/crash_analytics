@@ -57,7 +57,6 @@ def main() -> int:
     args = [
         target,
         "-q",
-        "--maxfail=1",
         "--disable-warnings",
         "--html", str(html),
         "--self-contained-html",
