@@ -129,7 +129,7 @@ pipeline {
       publishHTML(target: [
         reportDir: "reports/${env.BUILD_NUMBER}",
         reportFiles: 'index.html',
-        reportName: 'Report #${BUILD_NUMBER}',
+        reportName: 'Report #${env.BUILD_NUMBER}',
         keepAll: true,
         allowMissing: false,
         alwaysLinkToLastBuild: false
