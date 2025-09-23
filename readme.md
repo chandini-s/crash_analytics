@@ -5,7 +5,7 @@ A cross-platform (Windows & macOS) Jenkins-driven test runner that:
 - runs `pytest` and produces an **HTML** report *per build*,
 ---
 #### Repository layout
-    ├─ bugreport_extract/   -> extracted bugreport contents
+    ├─ extracted_bugreports/   -> extracted bugreport contents
     ├─ downloaded_bugreports/ -> Downloaded & extracted bugreports
     ├─ modules/    -> Re-usable helpers used by tests & runner
     │ ├─ events.py  

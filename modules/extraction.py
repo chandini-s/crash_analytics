@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DOWNLOAD_DIR = ROOT.parent / "downloaded_bugreports"
-EXTRACT_DIR = ROOT.parent / "bugreport_extract"
+EXTRACT_DIR = ROOT.parent / "extracted_bugreports"
 SEVEN_ZIP = os.environ.get("SEVEN_ZIP",r"C:\Program Files\7-Zip\7z.exe")
 SEARCH_PREFIX = "bugreport-"
 SEARCH_STRING = "DUMP OF SERVICE diskstats"

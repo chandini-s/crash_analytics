@@ -9,5 +9,5 @@ __pycache__/
 *.pyc
 
 reports
-bugreport_extract
+extracted_bugreports
 downloaded_bugreports
