@@ -88,7 +88,7 @@ pipeline {
           if (isUnix()) {
             sh '''
               set -e
-              export REPORTS_DIR="$WORKSPACE/reports"
+              export REPORTS_DIR="$WORKSPACE/reports/$BUILD_NUMBER"
               export REPORT_FILE="index.html"
               mkdir -p "$REPORTS_DIR"
 
@@ -102,7 +102,7 @@ pipeline {
           } else {
             bat '''
               setlocal EnableDelayedExpansion
-              set "REPORTS_DIR=%WORKSPACE%\\reports"
+              set "REPORTS_DIR=%WORKSPACE%\\reports\\%BUILD_NUMBER%"
               set "REPORT_FILE=index.html"
               if not exist "%REPORTS_DIR%" mkdir "%REPORTS_DIR%"
 
@@ -129,12 +129,14 @@ pipeline {
       script {
         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
           publishHTML(target: [
-            reportDir: 'reports',
+            reportDir: 'reports/${BUILD_NUMBER}',
             reportFiles: 'index.html',
-            reportName: 'Crash Analytics – Latest HTML Report',
-            keepAll: true, allowMissing: true, alwaysLinkToLastBuild: true
+            reportName: 'Crash Analytics – HTML Report',
+            keepAll: true,
+            allowMissing: false,
+            alwaysLinkToLastBuild: false
           ])
-          archiveArtifacts artifacts: 'reports/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip',
+          archiveArtifacts artifacts: 'reports/${BUILD_NUMBER}/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip',
                        fingerprint: true, onlyIfSuccessful: false
         }
       }
