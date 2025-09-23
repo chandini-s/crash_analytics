@@ -124,22 +124,20 @@ pipeline {
 
   post {
     always {
-      junit allowEmptyResults: true, testResults: 'reports/**/*.xml'
+      junit allowEmptyResults: true, testResults: 'reports/${env.BUILD_NUMBER}/**/*.xml'
 
-      script {
-        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-          publishHTML(target: [
-            reportDir: 'reports/${BUILD_NUMBER}',
-            reportFiles: 'index.html',
-            reportName: 'Crash Analytics – HTML Report',
-            keepAll: true,
-            allowMissing: false,
-            alwaysLinkToLastBuild: false
-          ])
-          archiveArtifacts artifacts: 'reports/${BUILD_NUMBER}/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip',
-                       fingerprint: true, onlyIfSuccessful: false
-        }
-      }
+      publishHTML(target: [
+        reportDir: "reports/${env.BUILD_NUMBER}",
+        reportFiles: 'index.html',
+        reportName: 'Report #${BUILD_NUMBER}',
+        keepAll: true,
+        allowMissing: false,
+        alwaysLinkToLastBuild: false
+      ])
+      archiveArtifacts artifacts: "reports/${env.BUILD_NUMBER}/**/*.html, downloaded_bugreports/**/*.zip, **/debugarchive_*.zip",
+                   fingerprint: true, onlyIfSuccessful: false
+
+
     }
   }
 }
