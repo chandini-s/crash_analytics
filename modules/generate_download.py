@@ -293,7 +293,7 @@ def to_aware_utc(dt_or_str):
 
 
 
-def poll_and_download(jwt, cookie, trigger_time, poll_minutes=10, poll_every_sec=60):
+def poll_and_download(jwt, cookie, trigger_time, poll_minutes=15, poll_every_sec=60):
     """
     Polls the bugreport API for ON-DEMAND DebugArchive reports and downloads the latest one.
     Parameters:
