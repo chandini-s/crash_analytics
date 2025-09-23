@@ -312,7 +312,7 @@ def poll_and_download(jwt, cookie, trigger_time, poll_minutes=15, poll_every_sec
         None
     """
     request_headers = headers(jwt, cookie)
-    poll_start_time = trigger_time - timedelta(minutes=5)
+    poll_start_time = trigger_time - timedelta(minutes=3)
     poll_end_time = trigger_time + timedelta(minutes=poll_minutes)
     attempt = 0
     print("Polling for on-demand reports from", poll_start_time, "to", poll_end_time)
