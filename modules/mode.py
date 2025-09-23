@@ -1,13 +1,10 @@
 """
-mode.py
-
 Fetches device mode from Logitech Analytics API.
 
 - Builds headers from local config (via utils.build_headers).
 - Calls GET /api/device/{device_id}.
 - Extracts device mode from top-level or metadata fields.
 """
-
 
 from __future__ import annotations
 from typing import Optional, Dict, Any
@@ -47,22 +44,12 @@ def get_device_mode_from_info(info: Dict[str, Any]) -> Optional[str]:
             v = md.get(k)
             if isinstance(v, str) and v.strip():
                 return v.strip()
-
     return None
 
 
-# convenience function that does everything
 def fetch_device_mode(device_id: str = DEVICE_ID) -> Optional[str]:
     """Fetch device mode by calling API and parsing JSON."""
     headers = build_headers()
     info = get_device_info(device_id, headers)
     return get_device_mode_from_info(info)
 
-
-if __name__ == "__main__":
-    # small CLI helper for manual runs
-    try:
-        mode = fetch_device_mode()
-        print("Device mode:", mode or "<not present>")
-    except Exception as e:
-        print("Error:", e)

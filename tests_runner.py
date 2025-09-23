@@ -1,12 +1,11 @@
+""" Run tests with pytest and generate HTML and JUnit reports. """
+
 from __future__ import annotations
-import os, sys, re, datetime as dt
+import os
 from pathlib import Path
 import pytest
-
-# --- your existing helpers (already in your repo) ---
 from utils import get_focused_app, get_serial_number, get_product_details,get_selected_device
 
-# ----------------------------------------------------
 
 ROOT = Path(__file__).resolve().parent
 REPORTS = ROOT / "reports"
@@ -19,14 +18,14 @@ def _reports_dir() -> Path:
     return Path(__file__).resolve().parent / "reports"
 
 def _pick_target_by_focus(focused: str) -> str:
-    f = (focused or "").lower()
-    if "zoom" in f:
-        return "testcases/tests_zoom"
-    if "teams" in f:
-        return "testcases/tests_mtr"
-    if "oobe" in f or "settings" in f:
-        return "testcases/tests_oobe"
-    return "testcases/tests_device_mode"
+    focused_app = (focused or "").lower()
+    if "zoom" in focused_app:
+        return "testcases/tests_zoom.py"
+    if "teams" in focused_app:
+        return "testcases/tests_mtr.py"
+    if "frogger" in focused_app:
+        return "testcases/tests_device_mode.py"
+    return "testcases"
 
 def main() -> int:
     device = get_selected_device()
@@ -36,22 +35,16 @@ def main() -> int:
 
     # selector for adb utils (use ip:port if only IP is given)
     selector = device if ":" in device else f"{device}:5555"
-
-    # optional: prints for debugging; do NOT change suite
     serial = get_serial_number(selector) or selector
     board, display = get_product_details(selector)
     focused = get_focused_app(selector)
     print(f"Selected device: {serial} | {board} / {display}")
     print(f"Focused app: {focused}")
-
     target = _pick_target_by_focus(focused)
     print(f"Running test target: {target} (based on focused app)")
-
     REPORTS_DIR = _reports_dir()
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-
     REPORT_FILE = os.getenv("REPORT_FILE","index.html")
-    ts = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     html = (REPORTS_DIR / REPORT_FILE).resolve()
     junit_xml = (REPORTS_DIR / "results.xml").resolve()
     args = [
@@ -66,4 +59,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    """ Entry point for running tests with pytest. """
     raise SystemExit(main())

@@ -53,8 +53,9 @@ from utils import build_headers, get_serial_number, get_selected_device
 
 DEVICE =get_selected_device()
 API_BASE = "https://logi-analytics.vc.logitech.com/api"
-DEVICE_ID = get_serial_number(DEVICE) # replace or pass in to functions as needed
+DEVICE_ID = get_serial_number(DEVICE)
 REQUEST_TIMEOUT = 30.0
+
 
 def get_collab_version_from_adb(adb_device):
     """
@@ -155,16 +156,14 @@ def get_collabos_version(device_id: str = DEVICE_ID, headers: Optional[Dict[str,
     Raises requests.HTTPError for HTTP/auth errors.
     """
     info = get_device_info(device_id, headers=headers)
-    # first, try common explicit keys
     for key in ("collabOSVersion", "collabOsVersion", "collabosVersion", "collab_version", "collabos_version"):
         if key in info and info[key]:
             return str(info[key])
-    # fallback: search the whole dict recursively
     return find_collabos_value(info)
 
 
-# example usage:
 if __name__ == "__main__":
+    """Example usage: fetch and print CollabOS version for the selected device."""
     try:
         version = get_collabos_version()
         if version:

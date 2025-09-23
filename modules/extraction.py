@@ -7,9 +7,9 @@ import subprocess
 import shutil
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent        # => <project-root>
+
+ROOT = Path(__file__).resolve().parent
 DOWNLOAD_DIR = ROOT.parent / "downloaded_bugreports"
-#EXTRACT_DIR = os.path.expanduser("~/bugreport_extract")
 EXTRACT_DIR = ROOT.parent / "bugreport_extract"
 SEVEN_ZIP = os.environ.get("SEVEN_ZIP",r"C:\Program Files\7-Zip\7z.exe")
 SEARCH_PREFIX = "bugreport-"
@@ -62,6 +62,7 @@ def find_camera_txt_files(root_dir):
                 found_files.append(os.path.join(dirpath, file))
     return found_files
 
+
 def search_string_in_prefixed_file(root_dir, prefix, search_string):
     print(f"Searching for '{search_string}' in files starting with '{prefix}'...")
     found = False
@@ -92,20 +93,15 @@ def camera_txt_main():
     zip_path =  get_latest_bugreport_zip()
     if not zip_path:
         return
-
     clean_and_prepare_extract_dir()
-
     # Step 1: Extract main zip
     extract_with_7zip(zip_path, EXTRACT_DIR)
-
     # Step 2: Recursively extract nested zips
     print("Extracting nested zip files using 7-Zip...")
     while extract_all_nested_zips(EXTRACT_DIR):
         pass  # Keep extracting until no zip files remain
-
     # Step 3: Find camera*.txt files
     camera_txt_files = find_camera_txt_files(EXTRACT_DIR)
-
     if camera_txt_files:
         print("Found camera txt files:")
         for f in camera_txt_files:

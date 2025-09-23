@@ -38,9 +38,7 @@ POST_REBOOT_MIN = 5
 POLL_INTERVAL_MIN = 3
 POLL_TIMEOUT_MIN = 30
 PAGE_LIMIT = 200
-
 IST = timezone(timedelta(hours=5, minutes=30))
-
 
 
 def iso_ist(dt: datetime) -> str:
@@ -55,6 +53,7 @@ def iso_ist(dt: datetime) -> str:
         ISO8601 string in IST with milliseconds.
     """
     return dt.astimezone(IST).isoformat(timespec="milliseconds")
+
 
 def get_device_type(headers: dict[str, str], serial: str) -> str:
     """
@@ -81,7 +80,6 @@ def get_device_type(headers: dict[str, str], serial: str) -> str:
     return device_type
 
 
-# ---------- device flow ----------
 def reboot_and_wait(serial: str) -> datetime:
     """
       Reboots the device via ADB and waits for it to complete booting.
@@ -111,7 +109,6 @@ def reboot_and_wait(serial: str) -> datetime:
     raise RuntimeError("Timed out waiting for boot completion")
 
 
-# ---------- API ----------
 def fetch_page(headers: dict, from_iso: str, to_iso: str, offset: int) -> list:
     """
      Fetches a single page of event logs from the API.
@@ -146,6 +143,7 @@ def fetch_page(headers: dict, from_iso: str, to_iso: str, offset: int) -> list:
         raise RuntimeError(f"Unexpected response: {type(data)} -> {data}")
     return data
 
+
 def scan_window(headers: dict, from_iso: str, to_iso: str, *, max_pages: int = 2000) -> list:
     out, offset = [], 0
     seen_first_ids = set()
@@ -177,6 +175,7 @@ def scan_window(headers: dict, from_iso: str, to_iso: str, *, max_pages: int = 2
 
     raise RuntimeError("Aborting after max_pages – pagination likely broken.")
 
+
 def is_bort_diskstats(events: dict) -> bool:
     """
       Checks if an event log entry is a Bort_DiskStats event.
@@ -199,6 +198,7 @@ def is_bort_diskstats(events: dict) -> bool:
         str(event_details.get("message", "")),
     ]
     return any(search_event in field.lower() for field in search_fields)
+
 
 def is_connected_display(events: dict) -> bool:
     """
@@ -236,4 +236,3 @@ def ts_ms_to_ist(ms: int) -> str:
         Formatted timestamp string in IST.
     """
     return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).astimezone(IST).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-

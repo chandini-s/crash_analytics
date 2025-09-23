@@ -97,7 +97,7 @@ pipeline {
               echo "SEVEN_ZIP=${SEVEN_ZIP:-<none>}"
 
               . .venv/bin/activate
-              python3 tests_run.py
+              python3 tests_runner.py
             '''
           } else {
             bat '''
@@ -113,7 +113,7 @@ pipeline {
               )
               echo SEVEN_ZIP=%SEVEN_ZIP%
 
-              .venv\\Scripts\\python.exe tests_run.py
+              .venv\\Scripts\\python.exe tests_runner.py
               if errorlevel 1 exit /b 1
             '''
           }

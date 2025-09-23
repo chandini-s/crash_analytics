@@ -51,6 +51,7 @@ CONFIG_DIR = ROOT / "config"
 DOWNLOAD_DIR = ROOT / "downloaded_bugreports"
 
 # ------Timezone & Regex -----
+IST = timezone(timedelta(hours=5, minutes=30))
 UTC = timezone.utc
 ISOZ = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
 
@@ -113,7 +114,6 @@ def iso_z(dt):  # UTC ISO8601 with Z and milliseconds
     return dt.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
-IST = timezone(timedelta(hours=5, minutes=30))
 def ts_from_item(item: Dict) -> Optional[str]:
     """
     Extracts and converts a timestamp from a bugreport item to IST.
@@ -151,8 +151,6 @@ def is_on_demand(item: Dict) -> bool:
     return (v is True) or (isinstance(v, str) and v.lower() == "true")
 
 
-# --- keep existing imports and helpers above ---
-
 def is_periodic(item: Dict) -> bool:
     """
     True for periodic reports: either ondemand == False, or the flag is missing.
@@ -164,6 +162,7 @@ def is_periodic(item: Dict) -> bool:
         return v.strip().lower() not in ("true", "1", "yes")
     # Treat missing/unknown as periodic
     return True
+
 
 def presign(header, path):
     """
@@ -205,8 +204,7 @@ def safe_stamp(dt):
     return re.sub(r'[:<>\"/\\|?*]+', '-', s)
 
 
-
-def download_ondemand(signed_url, found_time):
+def download_ondemand_bugreport(signed_url, found_time):
     """
     Downloads the bugreport archive from a presigned URL and saves it to disk.
     Parameters:
@@ -231,7 +229,8 @@ def download_ondemand(signed_url, found_time):
     print(f"Saved: {name}")
     return name
 
-def download_periodic(signed_url, found_time):
+
+def download_periodic_bugreport(signed_url, found_time):
     """
     Downloads the bugreport archive from a presigned URL and saves it to disk.
     Parameters:
@@ -255,7 +254,6 @@ def download_periodic(signed_url, found_time):
                 f.write(chunk)
     print(f"Saved: {name}")
     return name
-
 
 
 def trigger_on_demand(adb_id):
@@ -292,8 +290,7 @@ def to_aware_utc(dt_or_str):
     return dt.astimezone(UTC)
 
 
-
-def poll_and_download(jwt, cookie, trigger_time, poll_minutes=15, poll_every_sec=60):
+def poll_and_download_ondemand(jwt, cookie, trigger_time, poll_minutes=15, poll_every_sec=60):
     """
     Polls the bugreport API for ON-DEMAND DebugArchive reports and downloads the latest one.
     Parameters:
@@ -344,15 +341,14 @@ def poll_and_download(jwt, cookie, trigger_time, poll_minutes=15, poll_every_sec
                 report_path = latest_report.get("path")
                 print("Found ON-DEMAND:", latest_timestamp, "path=", report_path)
                 url = presign(request_headers, report_path)
-                fname = download_ondemand(url, datetime.fromisoformat(latest_timestamp.replace("Z", "+00:00")))
+                fname = download_ondemand_bugreport(url, datetime.fromisoformat(latest_timestamp.replace("Z", "+00:00")))
                 return fname
-
         # not found yet
         sleep_left = poll_every_sec
         while sleep_left > 0:
             time.sleep(1)
             sleep_left -= 1
-        print()# newline after progress
+        print()           # newline after progress
 
 
 def poll_and_download_periodic(jwt, cookie, from_time, to_time, poll_every_sec=60) -> str:
@@ -364,16 +360,13 @@ def poll_and_download_periodic(jwt, cookie, from_time, to_time, poll_every_sec=6
     Uses UTC internally. Raises TimeoutError if no match appears by the deadline.
     """
     request_headers = headers(jwt, cookie)
-
     # Normalize inputs to aware UTC
     start_dt = to_aware_utc(from_time)
     end_dt   = to_aware_utc(to_time)
 
     # Add grace for indexing delay
     deadline = end_dt + timedelta(minutes=15)
-
     print("Polling for Periodic reports from", start_dt.isoformat(), "to", end_dt.isoformat())
-
     attempt = 0
     while datetime.now(UTC) <= deadline:
         attempt += 1
@@ -391,8 +384,6 @@ def poll_and_download_periodic(jwt, cookie, from_time, to_time, poll_every_sec=6
 
         data = response.json()
         items = data if isinstance(data, list) else []
-
-        # PERIODIC filter: tag=debugarchive AND NOT on-demand
         matches = []
         for report in items:
             tag = (report.get("metadata", {}) .get("reporttag") or "").lower()
@@ -403,7 +394,6 @@ def poll_and_download_periodic(jwt, cookie, from_time, to_time, poll_every_sec=6
             ts_str = ts_from_item(report)
             if ts_str:
                 matches.append((ts_str, report))
-
         if matches:
             # newest first; ISO timestamps sort well lexicographically
             matches.sort(key=lambda x: x[0], reverse=True)
@@ -413,22 +403,18 @@ def poll_and_download_periodic(jwt, cookie, from_time, to_time, poll_every_sec=6
 
             url = presign(request_headers, report_path)
             ts_dt = datetime.fromisoformat(latest_ts_str.replace("Z", "+00:00"))
-            saved_path = download_periodic(url, ts_dt)
+            saved_path = download_periodic_bugreport(url, ts_dt)
             print(f"Saved: {saved_path}")
             return saved_path  # return path so test can assert
-
-        # Not found yet — backoff
         for s in range(poll_every_sec, 0, -1):
             time.sleep(1)
         print()
-
-    # No match by deadline
     raise TimeoutError("Periodic bugreport did not appear within the poll window.")
 
 
 def main():
     """
-    Main entry point:
+     Main entry point:
     - Loads credentials.
     - Triggers ON-DEMAND bugreport.
     - Polls and downloads the report.
@@ -439,6 +425,6 @@ def main():
     # poll up to 10 minutes, checking every 60 seconds
     poll_and_download_periodic(jwt, cookie, trigger_time,to_time , poll_every_sec=60)
 
-
 if __name__ == "__main__":
+    """ Run the main function if this script is executed directly. """
     main()
