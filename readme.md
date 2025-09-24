@@ -68,9 +68,9 @@ REPORT_FILE=index.html
 - Publishes the HTML report with:
 - `keepAll: true` → each build gets its **own** report
 - Archives artifacts:
-`reports/${BUILD_NUMBER}/**/*.html`
-`downloaded_bugreports/**/*.zip`
-any generated `debugarchive_*.zip`
+    - `reports/${BUILD_NUMBER}/**/*.html`
+    - `downloaded_bugreports/**/*.zip`
+    - any generated `debugarchive_*.zip`
 - Feeds JUnit XML (`reports/**/results.xml`) into Jenkins test trends. 
 After a build, you’ll see a sidebar link like **“Report #<build>”** that opens the frozen HTML for that specific build.
 
