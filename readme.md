@@ -81,10 +81,10 @@ After a build, you’ll see a sidebar link like **“Report #<build>”** that o
 2. If an IP is given, runner ensures `:5555`, runs `adb connect`, and picks the serial.
 
 - The runner uses ADB to detect the **focused app** and maps it to a test target:
-- “zoom”   → `testcases/tests_zoom.py`
-- “teams”  → `testcases/tests_mtr.py`
-- “teams”  → `testcases/tests_devicemode.py`
-- default  → `testcases` all testcases (if no focused app or no match)
+  - “zoom”   → `testcases/tests_zoom.py`
+  - “teams”  → `testcases/tests_mtr.py`
+  - “teams”  → `testcases/tests_devicemode.py`
+  - default  → `testcases` all testcases (if no focused app or no match)
 ---
 #### Reports
 - **HTML**: `${REPORTS_DIR}/${REPORT_FILE}` (self-contained HTML)  
