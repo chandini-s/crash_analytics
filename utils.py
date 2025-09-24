@@ -15,6 +15,7 @@ _SELECTED_SERIAL: Optional[str] = None    # cache for selected device serial
 
 
 def _run(cmd, check=True):
+    """ Helper to run a command and capture output."""
     return subprocess.run(cmd, text=True, capture_output=True, check=check)
 
 

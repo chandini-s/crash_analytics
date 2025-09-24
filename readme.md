@@ -23,7 +23,7 @@ A cross-platform (Windows & macOS) Jenkins-driven test runner that:
     ├─ tests_runner.py -> Entry point: selects device, picks suite, runs pytest
     ├─ utils.py -> General utilities (ADB Helpers, Build headers etc)
 ---
-#### Requirements 
+### Requirements 
 - **Python** 
 - **ADB** on PATH  
   - Windows: install the Android **platform-tools** and add to PATH  
