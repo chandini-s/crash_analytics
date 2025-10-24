@@ -103,7 +103,7 @@ def test_events_display():
     from_iso = ev.iso_ist(reboot_ist - timedelta(minutes=ev.PRE_REBOOT_MIN))
     to_iso = ev.iso_ist(reboot_ist + timedelta(minutes=ev.POST_REBOOT_MIN))
     print(f"Fixed window (IST): {from_iso} to {to_iso}")
-    # ---- 3) Poll for Bort_DiskStats ----
+    # ---- 3) Poll for ConnectedDisplay ----
     deadline = datetime.now(ev.IST) + timedelta(minutes=ev.POLL_TIMEOUT_MIN)
     found = False
     last_count = 0
@@ -160,10 +160,12 @@ def test_on_demand_bugreport_appears():
             jwt, cookie, trigger_time,
             poll_minutes=10, poll_every_sec=60
         )
+        assert download_path and isinstance(download_path,dict),"poll_and_download_ondemand() returned nothing, on-demand not found."
+        fname = download_path.get("saved_as")
     except TimeoutError:
         pytest.fail("ON-DEMAND bugreport did not appear within the poll window.")
     else:
-        assert download_path and isinstance(download_path, str)
+        assert fname and isinstance(fname, str)
         print(f"Downloaded: {download_path}")
 
 

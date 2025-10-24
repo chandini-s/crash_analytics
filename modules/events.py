@@ -343,4 +343,3 @@ def is_match(value, expected_patterns):
         if fnmatch.fnmatch(value, pattern) or fnmatch.fnmatch(file_name, pattern):
             return True
     return False
-
