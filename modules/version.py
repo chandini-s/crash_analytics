@@ -44,10 +44,10 @@ Security & Notes
 """
 
 from __future__ import annotations
-import re
-import requests
 from typing import Any, Optional, Dict
 import subprocess
+import re
+import requests
 from utils import build_headers, get_serial_number, get_selected_device
 
 

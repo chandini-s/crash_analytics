@@ -195,7 +195,7 @@ def main() -> int:
     for k in ("JAVA_HOME", "WORKSPACE", "GIT_URL"):
         os.environ.pop(k, None)
 
-    device = get_selected_device()
+    device = "10.91.208.243"
     selector = device if ":" in device else f"{device}:5555"
 
     providers = load_providers_local()

@@ -32,14 +32,15 @@ Timezones:
 """
 
 from __future__ import annotations
-import time, subprocess, requests, re
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional
+import time, subprocess, re, requests
 from utils import get_serial_number,get_selected_device, get_auth_and_cookie
 
 # -----Configuration -----
-DEVICE = get_selected_device()
+#DEVICE = get_selected_device()
+DEVICE = "10.91.208.243"
 DEVICE_ID =get_serial_number(DEVICE)
 API_BASE = "https://logi-analytics.vc.logitech.com/api"
 LIST_URL = f"{API_BASE}/bugreports/{DEVICE_ID}"
@@ -302,7 +303,7 @@ def poll_and_download_ondemand(jwt, cookie, trigger_time, poll_minutes=15, poll_
     trigger_utc : datetime
         Time when the bugreport was triggered.
     poll_minutes : int
-        Total duration to poll (default: 10 minutes).
+        Total duration to poll (default: 15 minutes).
     poll_every_sec : int
         Interval between polls (default: 60 seconds).
     Returns:
@@ -339,10 +340,11 @@ def poll_and_download_ondemand(jwt, cookie, trigger_time, poll_minutes=15, poll_
                 matching_reports.sort(key=lambda x: x[0], reverse=True)
                 latest_timestamp, latest_report = matching_reports[0]
                 report_path = latest_report.get("path")
+                mar_path = (latest_report.get("metadata",{}) or {}).get("path") or ""
                 print("Found ON-DEMAND:", latest_timestamp, "path=", report_path)
                 url = presign(request_headers, report_path)
                 fname = download_ondemand_bugreport(url, datetime.fromisoformat(latest_timestamp.replace("Z", "+00:00")))
-                return fname
+                return {"path":mar_path, "saved_as": fname}
         # not found yet
         sleep_left = poll_every_sec
         while sleep_left > 0:

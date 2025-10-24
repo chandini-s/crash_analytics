@@ -9,6 +9,7 @@ from modules.version import get_collabos_version, get_collab_version_from_adb
 from modules.mode import fetch_device_mode
 import utils as util
 from modules import generate_download as generate
+from modules.extraction import extract_partner_file, extract_edid_file
 
 util.have_auth()  # Ensure auth is available before running tests
 
@@ -167,3 +168,62 @@ def test_on_demand_bugreport_appears():
     else:
         assert download_path and isinstance(download_path, str)
         print(f" Downloaded: {download_path}")
+
+
+def test_partner_logs_file():
+    """trigger ON-DEMAND bugreport generation"""
+    jwt, cookie = util.get_auth_and_cookie()
+    if not (jwt or cookie):
+        pytest.skip("Missing auth/cookie in ./config (auth.txt or cookie.txt)")
+    trigger_time = generate.trigger_on_demand(generate.DEVICE)
+    try:
+        download_path = generate.poll_and_download_ondemand(
+            jwt, cookie, trigger_time,
+            poll_minutes=10, poll_every_sec=60
+        )
+    except TimeoutError:
+        pytest.fail("ON-DEMAND bugreport did not appear within the poll window.")
+    else:
+        assert download_path and isinstance(download_path, str)
+        print(f" Downloaded: {download_path}")
+    try:
+        partner_file=extract_partner_file()
+        print(f" Partner logs file found at: {partner_file}")
+        assert partner_file,"partner file not found after extraction"
+    except Exception as e:
+        pytest.fail(f"Event extraction failed: {e}")
+        return
+
+
+def test_edid_file():
+    """This function verify EDID file from an On-demand Bugreport
+        1.Trigger On-Demand bug report.
+        2. Poll for the generated bug report and download once it is available.
+        3.Extract the Bug report and search for the EDID file in the.
+        4.Validate EDID file is found successfully.
+    """
+    jwt, cookie = util.get_auth_and_cookie()
+    # jwt = generate.load(generate.AUTH_PATH)
+    # cookie = generate.load(generate.COOKIE_PATH)
+    if not (jwt or cookie):
+        pytest.skip("Missing auth/cookie in ./config (auth.txt or cookie.txt)")
+    # --- trigger via ADB (no download) ---
+    trigger_time = generate.trigger_on_demand(generate.DEVICE)
+    try:
+        download_path = generate.poll_and_download_ondemand(
+            jwt, cookie, trigger_time,
+            poll_minutes=10, poll_every_sec=60
+        )
+    except TimeoutError:
+        pytest.fail("ON-DEMAND bugreport did not appear within the poll window.")
+    else:
+        assert download_path and isinstance(download_path, str)
+        print(f"Downloaded: {download_path}")
+    # ---- 5) Extract events from the downloaded bug report ----
+    try:
+        edid_file = extract_edid_file()
+        print(f"found edid file: {edid_file}")
+        assert edid_file, "edid file not found after extraction"
+    except Exception as e:
+        pytest.fail(f"Event extraction failed: {e}")
+        return

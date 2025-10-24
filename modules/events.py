@@ -24,9 +24,9 @@ Usage
     python -u generate_download.py
 """
 
-import time, subprocess, requests
+import time, subprocess, requests, json, fnmatch
+from pathlib import PurePath
 from datetime import datetime, timedelta, timezone
-
 from utils import get_serial_number, get_selected_device, adb
 
 # ---------- Config ----------
@@ -145,18 +145,31 @@ def fetch_page(headers: dict, from_iso: str, to_iso: str, offset: int) -> list:
 
 
 def scan_window(headers: dict, from_iso: str, to_iso: str, *, max_pages: int = 2000) -> list:
+    """
+    Scans and retrieves paginated data from an API within a specified time window.
+    Args:
+        headers (dict): HTTP headers to include in the API request.
+        from_iso (str): ISO 8601 formatted start timestamp for the data window.
+        to_iso (str): ISO 8601 formatted end timestamp for the data window.
+        max_pages (int, optional): Maximum number of pages to fetch before aborting. Defaults to 2000.
+    Returns:
+        list: A list of all items retrieved across pages within the specified time window.
+    Raises:
+        AssertionError: If PAGE_LIMIT is not a positive integer.
+        RuntimeError: If pagination appears to be broken (e.g., same page repeating or max_pages exceeded).
+    Notes:
+        - Uses an `offset`-based pagination strategy.
+        - Detects and prevents infinite loops by checking for repeated first item IDs.
+        - Stops fetching when an empty page is returned or the last page has fewer items than PAGE_LIMIT.
+    """
     out, offset = [], 0
     seen_first_ids = set()
-
     assert isinstance(PAGE_LIMIT, int) and PAGE_LIMIT > 0, "PAGE_LIMIT must be a positive int"
-
-    for page_no in range(max_pages):
+    for page in range(max_pages):
         page = fetch_page(headers, from_iso, to_iso, offset)
-
         if not page:
             # empty page → nothing else to fetch
             return out
-
         # Detect if the same page is being returned repeatedly
         first_id = page[0].get("id") if isinstance(page[0], dict) else None
         if first_id is not None:
@@ -166,13 +179,10 @@ def scan_window(headers: dict, from_iso: str, to_iso: str, *, max_pages: int = 2
                     f"This usually means the API ignores 'offset' or expects a different param."
                 )
             seen_first_ids.add(first_id)
-
         out.extend(page)
         if len(page) < PAGE_LIMIT:
             return out
-
         offset += PAGE_LIMIT
-
     raise RuntimeError("Aborting after max_pages – pagination likely broken.")
 
 
@@ -236,3 +246,101 @@ def ts_ms_to_ist(ms: int) -> str:
         Formatted timestamp string in IST.
     """
     return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).astimezone(IST).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+def normalize_expected_value(expected_value):
+    """Normailze expected value(s) to a list of lowercase strings for comparison.
+    Parameters:
+        expected_value : str | list
+            Expected value(s) to normalize.
+    Returns:
+        list[str]
+      """
+
+    if isinstance(expected_value, list):
+        return [str(value).lower() for value in expected_value]
+    return [str(expected_value).lower()]
+
+
+def extract_values(log_item, key_name):
+    """ Extract the values associated with given key from 'details' section.
+     This function searches for both the top-level fields and nested details field within a log dictionary
+     to collect all the values that is corresponded to the specified key.It handles the multiple
+     data types including strings, lists, tuples, and dictionaries.
+    Parameters:
+            log_item : dict
+            key_name : str
+
+    Returns:
+        list[str]
+     """
+    possible_values = []
+    # 1. Direct key from log item
+    value = log_item.get(key_name)
+    if value is not None:
+        if isinstance(value, (list, tuple)):
+            possible_values.extend(map(str, value))
+        elif isinstance(value, dict):
+            possible_values.extend(map(str, value.values()))
+        else:
+            possible_values.append(str(value))
+    # 2. Parse 'details' section
+    details = log_item.get("details")
+    if isinstance(details, str):
+        try:
+            details = json.loads(details)
+        except Exception:
+            possible_values.append(details)
+            details = None
+    if isinstance(details, dict):
+        # Specific key match
+        if key_name in details:
+            val = details[key_name]
+            if isinstance(val, (list, tuple)):
+                possible_values.extend(map(str, val))
+            else:
+                possible_values.append(str(val))
+            # Add all other values
+        for val in details.values():
+            if isinstance(val, (list, tuple)):
+                possible_values.extend(map(str, val))
+            else:
+                possible_values.append(str(val))
+    elif isinstance(details, (list, tuple)):
+        possible_values.extend(map(str, details))
+
+        # Remove duplicates and empty strings
+    unique_values = [v.strip() for v in dict.fromkeys(possible_values) if v.strip()]
+    return unique_values
+
+def is_match(value, expected_patterns):
+    """This function checks the a given value matches any of the expected patterns.
+         1.It supports Case-insensitive substring checks.
+         2.Direct filename or path comparisons.
+         3.File extension matching with patterns like '*.ext' or '.ext'.
+    Parameter:
+        value : str
+        Expected_patterns : list[str]
+    Returns:
+        bool
+        """
+    value = str(value).lower()
+    try:
+        path = PurePath(value)
+        file_name = path.name.lower()
+        extension = path.suffix.lower()
+    except Exception:
+        file_name, extension = value, ""
+
+    for pattern in expected_patterns:
+        if not pattern:
+            continue
+        if pattern in value or pattern in file_name:
+            return True
+        if pattern.startswith("*.") and extension == pattern[1:]:
+            return True
+        if pattern.startswith(".") and extension == pattern:
+            return True
+        if fnmatch.fnmatch(value, pattern) or fnmatch.fnmatch(file_name, pattern):
+            return True
+    return False
+

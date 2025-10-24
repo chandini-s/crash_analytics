@@ -2,9 +2,11 @@
 
 from pathlib import Path
 import subprocess
+import shlex
 import re
 import os
 from typing import Optional
+import xml.etree.ElementTree as ET
 
 
 ROOT = Path(__file__).resolve().parent
@@ -58,7 +60,7 @@ def get_selected_device() -> str:
             for tok in re.split(r"[,\s]+", raw):
                 tok = clean(tok)
                 if tok:
-                    dev = tok
+                    device = tok
                     break
     # 2) Fallback: Jenkins workspace file written by pipeline
     if not device:
@@ -115,19 +117,18 @@ def get_serial_number(device_selected: str ) -> str | None:
         return None
 
 
-def _read_text(p: Path) -> str:
-    try:
-        return Path(p).read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
-        return ""
-
-
 def get_auth_and_cookie():
     """ Returns (auth, cookie) from jenkins environment."""
     auth = os.getenv("AUTH", "").strip()
     cookie = os.getenv("COOKIE", "").strip()
+    # auth ="eyJraWQiOiJoUm8rK0ZKN1FSdFdcL3FcLzdjQzVwbjNidG5GOFoyQXlcLzMyS3gwS2RwQnFnPSIsImFsZyI6IlJTMjU2In0.eyJhdF9oYXNoIjoiWjhoWkdEUUVSZi11cjNsVmx6Z3BGZyIsInN1YiI6ImE1YjMyOGRhLTI3NmYtNGY3ZC1iYjhjLWFjZWUxMGQyMjdmNSIsImNvZ25pdG86Z3JvdXBzIjpbInMzYnJvd3NlciIsInVzLXdlc3QtMl9WU3NOekh1U2RfTG9naXRlY2hPa3RhIiwic3dfcmVsZWFzZV92aWV3ZXIiLCJob3N0bG9ncyIsIm90YV9tYW5pZmVzdHMiLCJldmVudGxvZ3MiLCJkaWFnbm9zdGljcyIsImJ1Z3JlcG9ydHMiXSwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJjb2duaXRvOnByZWZlcnJlZF9yb2xlIjoiYXJuOmF3czppYW06OjUxMjM3NzcwMDIzNzpyb2xlXC9UZW5qaW5Qcm9kLVdlYnNpdGVpZGVudGl0eXJvbGVzMzRGRTk3NEJCLTRZRFVPUTEwWk9TUyIsImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC51cy13ZXN0LTIuYW1hem9uYXdzLmNvbVwvdXMtd2VzdC0yX1ZTc056SHVTZCIsImNvZ25pdG86dXNlcm5hbWUiOiJMb2dpdGVjaE9rdGFfZ3ZlbmthdGVzaEBsb2dpdGVjaC5jb20iLCJnaXZlbl9uYW1lIjoiR2F1dGFtIiwibm9uY2UiOiJxMzdlZ3pvYXk2VUtGTTFEaG92Y0pzVnVBVEpNTHlMeWd2aWpxU2Q3RldaMHdmSVlheTYxa055YkhDLVh5SlFwVlBsRVBVM2N0TkxtUkRRWmdqX1N5SHNfRzJPeDFlSHZ0QXI3OVJqTWR2dDZMZWZqRkt6TWdWenRfREhEcThfUmh5a18wZEpJQXZnbUpSU3FwR0ZTX0NiWnVhb3BKSUFhcU9iX1U1VXoyNVEiLCJvcmlnaW5fanRpIjoiZGY3MTJmNGEtZWUxNS00OThjLTliMWItNmVkZWVmNjFlOTJjIiwiY29nbml0bzpyb2xlcyI6WyJhcm46YXdzOmlhbTo6NTEyMzc3NzAwMjM3OnJvbGVcL1RlbmppblByb2QtV2Vic2l0ZWlkZW50aXR5cm9sZXMzNEZFOTc0QkItNFlEVU9RMTBaT1NTIl0sImF1ZCI6IjJkcmhlbTdhN2VqOWlyZWMxbTU5cDlyZmdmIiwiaWRlbnRpdGllcyI6W3sidXNlcklkIjoiZ3ZlbmthdGVzaEBsb2dpdGVjaC5jb20iLCJwcm92aWRlck5hbWUiOiJMb2dpdGVjaE9rdGEiLCJwcm92aWRlclR5cGUiOiJTQU1MIiwiaXNzdWVyIjoiaHR0cDpcL1wvd3d3Lm9rdGEuY29tXC9leGsyZmt0b2JlNHBjczFxejR4NyIsInByaW1hcnkiOiJ0cnVlIiwiZGF0ZUNyZWF0ZWQiOiIxNzE2OTg3NjIzMjg5In1dLCJ0b2tlbl91c2UiOiJpZCIsImF1dGhfdGltZSI6MTc2MTI3NzA0NCwibmFtZSI6IkdhdXRhbSIsImV4cCI6MTc2MTMwOTQ0NCwiaWF0IjoxNzYxMjc3MDQ0LCJmYW1pbHlfbmFtZSI6IlZlbmthdGVzaCIsImp0aSI6IjNlZGJmZGIxLWM2YTEtNGY3OS05NTIyLTllNDUyOTY4ZTYzZSIsImVtYWlsIjoiZ3ZlbmthdGVzaEBsb2dpdGVjaC5jb20ifQ.A9a5isbi7ILTckkcbKNtWg4cGyu6SBqhRw-0cKYbq1bBbS2LeY6OqzW6rSye9P32ibo3xpYm76mZvDle9K0JA-ICYhfUD7ZScdDsFFr-6FQy4U02EB4VTNWwy-FUvvy3E8iKi6YR1ZhtcmUEuddV_sl8Hp6BYgNsOIfKsREK_1gbIRBb72xiENqXisoNnksb78zQsr_nee5FOtnOPyw9f1zgr9ZmS-Uu3PXUTProkXkbUdGKnJp1Dkc3pnspOuSs6bu9mPHcT8hgNdJrm6nZs3ddLm5vq62c9zVxeVIxtDjf7PR54s5bArKYpGqnzbZa8oNIAT6w7WtNtS7kOTGSog"
+    # cookie = "_ga=GA1.1.2046316337.1756201732; _ga_JCM4J59MSX=GS2.1.s1756356944$o2$g1$t1756357064$j60$l0$h0"
     if auth or cookie:
         return auth, cookie
+    # else :
+    #     auth = _read_text(CONFIG_DIR / "auth.txt")
+    #     cookie = _read_text(CONFIG_DIR / "cookie.txt")
+    #     return auth, cookie
     else :
         return False
 
@@ -217,3 +218,44 @@ def get_product_details(adb_device):
         print(f"Name Details: {display_name}")
         print(f"Board Details: {board}")
         return board, display_name
+
+
+log_file_path = "window_dump.xml"
+def run_adb_commands():
+    try:
+        subprocess.run(["adb", "shell", "uiautomator", "dump"], check=True)
+        subprocess.run(["adb", "pull", "/sdcard/window_dump.xml"], check=True)
+        print("[INFO] UI dump pulled successfully.")
+    except Exception as e:
+        print(f"[ERROR] ADB command failed: {e}")
+
+def read_cmd_output_safe():
+    try:
+        with open(log_file_path, "r", encoding="utf-8") as f:
+            return f.read().lower()
+    except Exception as e:
+        print(f"[ERROR] Reading log failed: {e}")
+        return ""
+
+def extract_device_code_from_xml():
+    try:
+        tree = ET.parse(log_file_path)
+        root = tree.getroot()
+        for node in root.iter("node"):
+            text = node.attrib.get("text", "")
+            if re.fullmatch(r"[A-Z0-9]{8,}", text):
+                return text
+    except Exception as e:
+        print(f"[ERROR] Could not extract device code: {e}")
+    return None
+
+def main():
+    run_adb_commands()
+    code = extract_device_code_from_xml()
+    if code:
+        print(f"✅ Device login code found: {code}")
+    else:
+        print("❌ No valid device login code found.")
+
+if __name__ == "__main__":
+    main()

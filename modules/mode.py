@@ -53,3 +53,10 @@ def fetch_device_mode(device_id: str = DEVICE_ID) -> Optional[str]:
     info = get_device_info(device_id, headers)
     return get_device_mode_from_info(info)
 
+
+if __name__ == "__main__":
+    try:
+        mode = fetch_device_mode()
+        print("Device mode:", mode or "<not present>")
+    except Exception as e:
+        print("Error:", e)

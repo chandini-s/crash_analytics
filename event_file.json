@@ -1,0 +1,27 @@
+[
+  {
+    "event": "Bort_LoggingMode",
+    "key": "collectionMode",
+    "expected_value": "CONTINUOUS"
+  },
+  {
+    "event": "Bort_LoggingMode",
+    "key": "collectionMode",
+    "expected_value": "PERIODIC"
+  },
+  {
+    "event":"Bort_BugReportStart",
+    "key": "file",
+    "expected_value": [".mar",".zip",".tar"]
+  },
+  {
+    "event":"Bort_BugReportFinish",
+    "key": "file",
+    "expected_value": [".mar",".zip",".tar"]
+  },
+  {
+    "event": "Bort_BugReportGenerateComplete",
+    "key": "path",
+    "expected_value": ".zip"
+  }
+]
