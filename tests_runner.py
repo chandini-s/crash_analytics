@@ -205,7 +205,7 @@ def main() -> int:
     for sp in providers:
         label = sp.upper()
         print("\n" + "=" * 80)
-        print(f"[{label}] APPLY_PROFILE → wait-for-device (online) → set ADB timezone → read focus → run tests")
+        print(f"[{label}] APPLY_PROFILE ->  wait-for-device (online) ->  set ADB timezone ->  read focus -> run tests")
         print("=" * 80)
 
         try:
